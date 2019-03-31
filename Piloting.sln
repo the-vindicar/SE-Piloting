@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.168
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasicPiloting", "BasicPiloting\BasicPiloting.csproj", "{ACDEC0CD-5C6C-4F2E-B790-1F2EF37BD293}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{ACDEC0CD-5C6C-4F2E-B790-1F2EF37BD293}.Debug|x64.ActiveCfg = Debug|x64
+		{ACDEC0CD-5C6C-4F2E-B790-1F2EF37BD293}.Debug|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A3BED752-7C17-4348-B8F6-BF6CE4C071C8}
+	EndGlobalSection
+EndGlobal
