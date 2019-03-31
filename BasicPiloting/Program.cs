@@ -33,7 +33,7 @@ namespace IngameScript
             screen?.WritePublicText("", false);
             GridTerminalSystem.GetBlocksOfType(sensors);
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
-            pilot = new AutoPilot(GridTerminalSystem);
+            pilot = new AutoPilot(GridTerminalSystem, Me);
             pilot.Log += (msg) => screen?.WritePublicText(msg+"\n", true);
             pilot.RepeatLastTask = true;
             //pilot.Tasks.Add(new AimedFlightStrategy("GPS:Test:20.71:23.77:37.54:"));
@@ -46,7 +46,7 @@ namespace IngameScript
             if (updateSource != UpdateType.Update10 && argument == "stop")
             {
                 pilot.DisableOverrides();
-                pilot.SetInertialDampeners(true);
+                pilot.Controller.DampenersOverride = true;
                 Me.Enabled = false;
                 return;
             }
@@ -61,7 +61,8 @@ namespace IngameScript
                     {
                         Waypoint goal = new Waypoint(entities[0]);
                         goal.TargetDistance = 5.0;
-                        pilot.Tasks.Add(new AimedFlightStrategy(goal));
+                        var strategy = new AimedFlightStrategy(goal);
+                        pilot.Tasks.Add(strategy);
                         return;
                     }
                 }

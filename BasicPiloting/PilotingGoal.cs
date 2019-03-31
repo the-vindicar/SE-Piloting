@@ -19,9 +19,18 @@ namespace IngameScript
 {
     partial class Program
     {
+        /// <summary>
+        /// Represents a goal for the autopilot: a point in world-space to reach, or an entity to pursue.
+        /// </summary>
         public class Waypoint
         {
+            /// <summary>
+            /// How much time passed since last target update.
+            /// </summary>
             double _ElapsedTime;
+            /// <summary>
+            /// Position of the target at the time of last update.
+            /// </summary>
             Vector3D _Position;
             /// <summary>
             /// Entity we are tracking.
@@ -52,6 +61,10 @@ namespace IngameScript
             /// </summary>
             public double TargetDistance = 0.0;
             static readonly char[] gpsSep = new char[] { ':' };
+            /// <summary>
+            /// Creates a stationary waypoint from GPS string.
+            /// </summary>
+            /// <param name="gps">GPS string. Typical format is "GPS:Point name:59.55:-11.63:-22.81:"</param>
             public Waypoint(string gps)
             {
                 //"GPS: Slam Here:59.55:-11.63:-22.81:"
@@ -71,13 +84,12 @@ namespace IngameScript
                 Velocity = Vector3D.Zero;
                 Name = parts[0];
             }
-            public Waypoint(Vector3D worldpos)
-            {
-                Entity = new MyDetectedEntityInfo();
-                _Position = worldpos;
-                Velocity = Vector3D.Zero;
-                Name = "";
-            }
+            /// <summary>
+            /// Creates a stationary or moving waypoint, using given data.
+            /// </summary>
+            /// <param name="worldpos">Target position at the moment, world-space.</param>
+            /// <param name="vel">Target velocity at the moment, world-space.</param>
+            /// <param name="name">Target name.</param>
             public Waypoint(Vector3D worldpos, Vector3D vel, string name)
             {
                 Entity = new MyDetectedEntityInfo();
@@ -86,6 +98,10 @@ namespace IngameScript
                 Velocity = vel;
                 Name = name;
             }
+            /// <summary>
+            /// Creates a waypoint from entity description.
+            /// </summary>
+            /// <param name="entity">Entity description.</param>
             public Waypoint(MyDetectedEntityInfo entity)
             {
                 SetNewEntityInfo(entity);
@@ -101,7 +117,7 @@ namespace IngameScript
             }
 
             public static implicit operator Waypoint(string gps) { return new Waypoint(gps); }
-            public static implicit operator Waypoint(Vector3D worldpos) { return new Waypoint(worldpos); }
+            public static implicit operator Waypoint(Vector3D worldpos) { return new Waypoint(worldpos, Vector3D.Zero, "Location"); }
             public static implicit operator Waypoint(MyDetectedEntityInfo entity) { return new Waypoint(entity); }
 
             public override string ToString()
@@ -111,9 +127,16 @@ namespace IngameScript
             }
             bool EntityMatches(MyDetectedEntityInfo entity)
             {
-                return Entity.IsEmpty() || (Entity.EntityId == entity.EntityId);
+                return !Entity.IsEmpty() && (Entity.EntityId == entity.EntityId);
             }
             List<MyDetectedEntityInfo> Detected = new List<MyDetectedEntityInfo>();
+            /// <summary>
+            /// Queries given sensor blocks, attempting to find the entity to pursue.
+            /// </summary>
+            /// <param name="sensors">List of sensors to query.</param>
+            /// <param name="selector">Selector function. Should return true for the entity the ship should pursue.
+            /// If null, then the ship will search for the entity with the same EntityId as current entity.</param>
+            /// <returns>True if the entity was detected, and approved by the selector.</returns>
             public bool UpdateEntity(List<IMySensorBlock> sensors, Func<MyDetectedEntityInfo, bool> selector = null)
             {
                 if (selector == null) selector = EntityMatches;
@@ -130,6 +153,13 @@ namespace IngameScript
                 }
                 return false;
             }
+            /// <summary>
+            /// Queries given turret blocks, attempting to find the entity to pursue.
+            /// </summary>
+            /// <param name="turrets">List of turrets to query. Entities targeted by them will be candidates.</param>
+            /// <param name="selector">Selector function. Should return true for the entity the ship should pursue.
+            /// If null, then the ship will search for the entity with the same EntityId as current entity.</param>
+            /// <returns>True if the entity was detected and approved by the selector.</returns>
             public bool UpdateEntity(List<IMyLargeTurretBase> turrets, Func<MyDetectedEntityInfo, bool> selector = null)
             {
                 if (selector == null) selector = EntityMatches;
@@ -145,6 +175,13 @@ namespace IngameScript
                 }
                 return false;
             }
+            /// <summary>
+            /// Attempts to scan estimated position of the target using given camera blocks.
+            /// </summary>
+            /// <param name="cameras">Cameras to raycast with. Will be set to raycast by the method.</param>
+            /// <param name="selector">Selector function. Should return true for the entity the ship should pursue.
+            /// If null, then the ship will search for the entity with the same EntityId as current entity.</param>
+            /// <returns>True if the entity was detected and approved by the selector.</returns>
             public bool UpdateEntity(List<IMyCameraBlock> cameras, Func<MyDetectedEntityInfo, bool> selector = null)
             {
                 Vector3D estimate = CurrentPosition;
@@ -165,6 +202,10 @@ namespace IngameScript
                 }
                 return false;
             }
+            /// <summary>
+            /// Increases time since the target was last updated.
+            /// </summary>
+            /// <param name="milliseconds">How much time passed since last call to UpdateTime() or UpdateEntity().</param>
             public void UpdateTime(double milliseconds)
             {
                 _ElapsedTime += milliseconds;

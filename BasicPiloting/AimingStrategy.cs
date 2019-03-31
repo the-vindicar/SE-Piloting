@@ -24,15 +24,28 @@ namespace IngameScript
         /// </summary>
         public class AimingStrategy : BasePilotingStrategy
         {
+            /// <summary>
+            /// Constructs the strategy with given goal and (optional) reference block.
+            /// </summary>
+            /// <param name="goal">Goal to pursue.</param>
+            /// <param name="reference">Reference block to use, or null to use ship controller.</param>
             public AimingStrategy(Waypoint goal, IMyTerminalBlock reference = null) : base (goal, reference) { }
+            /// <summary>
+            /// Queries the strategy on which linear and angular velocities the ship should have.
+            /// </summary>
+            /// <param name="owner">AutoPilot instance that queries the strategy.</param>
+            /// <param name="linearV">Initial value - current linear velocity. Is set to desired linear velocity.</param>
+            /// <param name="angularV">Initial value - current rotation. Is set to desired rotation.</param>
+            /// <returns>True if goal is considered achieved.</returns>
             public override bool Update(AutoPilot owner, ref Vector3D linearV, ref Vector3D angularV)
             {
+                if (Goal == null) return false;
                 IMyTerminalBlock reference = Reference ?? owner.Controller;
                 MatrixD wm = reference.WorldMatrix;
                 Vector3D direction = Goal.CurrentPosition - wm.Translation;
                 double distance = direction.Normalize();
                 linearV.X = linearV.Y = linearV.Z = 0;
-                double diff = owner.RotateToMatch(direction,
+                double diff = RotateToMatch(direction, Vector3D.Zero,
                     wm.GetDirectionVector(Base6Directions.Direction.Forward),
                     wm.GetDirectionVector(Base6Directions.Direction.Up),
                     ref angularV);

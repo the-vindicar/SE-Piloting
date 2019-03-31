@@ -28,15 +28,16 @@ namespace IngameScript
             public RammingStrategy(Waypoint goal, IMyTerminalBlock reference = null) : base(goal, reference) { }
             public override bool Update(AutoPilot owner, ref Vector3D linearV, ref Vector3D angularV)
             {
+                if (Goal == null) return false;
                 IMyTerminalBlock reference = Reference ?? owner.Controller;
                 MatrixD wm = reference.WorldMatrix;
                 Goal.UpdateTime(owner.elapsedTime);
                 Vector3D direction = Goal.CurrentPosition - wm.Translation;
                 double distance = direction.Normalize();
                 //linear velocity
-                linearV = direction * MaxLinearVelocity + Goal.Velocity;
+                linearV = direction * MaxLinearSpeed + Goal.Velocity;
                 //angular velocity
-                double diff = owner.RotateToMatch(direction,
+                double diff = RotateToMatch(direction, Vector3D.Zero,
                     wm.GetDirectionVector(Base6Directions.Direction.Forward),
                     wm.GetDirectionVector(Base6Directions.Direction.Up),
                     ref angularV);

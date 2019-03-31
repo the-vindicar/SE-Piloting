@@ -19,12 +19,33 @@ namespace IngameScript
 {
     partial class Program
     {
+        /// <summary>
+        /// Moves the ship in a straight line to the specified goal.
+        /// Ship orientation is ignored.
+        /// No collision avoidance is done.
+        /// </summary>
         public class UnaimedFlightStrategy : BasePilotingStrategy
         {
+            /// <summary>
+            /// How close to the maximum safe speed are we allowed to get.
+            /// </summary>
             public double VelocityUsage = 0.9;
+            /// <summary>
+            /// Constructs the strategy with given goal and (optional) reference block.
+            /// </summary>
+            /// <param name="goal">Goal to pursue.</param>
+            /// <param name="reference">Reference block to use, or null to use ship controller.</param>
             public UnaimedFlightStrategy(Waypoint goal, IMyTerminalBlock reference = null) : base(goal, reference) { }
+            /// <summary>
+            /// Queries the strategy on which linear and angular velocities the ship should have.
+            /// </summary>
+            /// <param name="owner">AutoPilot instance that queries the strategy.</param>
+            /// <param name="linearV">Initial value - current linear velocity. Is set to desired linear velocity.</param>
+            /// <param name="angularV">Initial value - current rotation. Is set to desired rotation.</param>
+            /// <returns>True if goal is considered achieved.</returns>
             public override bool Update(AutoPilot owner, ref Vector3D linearV, ref Vector3D angularV)
             {
+                if (Goal == null) return false;
                 IMyTerminalBlock reference = Reference ?? owner.Controller;
                 MatrixD wm = reference.WorldMatrix;
                 Goal.UpdateTime(owner.elapsedTime);
@@ -40,7 +61,7 @@ namespace IngameScript
                     //linear velocity
                     double accel = owner.GetMaxAccelerationFor(-direction);
                     double braking_time = Math.Sqrt(2 * distance / accel);
-                    double acceptable_velocity = Math.Min(VelocityUsage * accel * braking_time, MaxLinearVelocity);
+                    double acceptable_velocity = Math.Min(VelocityUsage * accel * braking_time, MaxLinearSpeed);
                     acceptable_velocity = Math.Min(acceptable_velocity, distance);//slow down when close
                     Vector3D targetv = direction * acceptable_velocity;
                     linearV = targetv + Goal.Velocity;
