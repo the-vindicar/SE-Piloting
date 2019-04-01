@@ -230,11 +230,13 @@ namespace IngameScript
             /// Configures gyros to apply required rotation.
             /// </summary>
             /// <param name="gridRotation">Angular velocity of the ship in grid-space.</param>
-            /// <param name="reference">Reference block used (controller otherwise).</param>
+            /// <param name="reference">Reference block used (controller if null).</param>
+            /// <param name="forward">Direction of the reference block to be considered forward.</param>
+            /// <param name="up">Direction of the reference block to be considered up.</param>
             void SetRotationVelocity(Vector3D gridRotation, 
-                IMyTerminalBlock reference, 
-                Base6Directions.Direction forward,
-                Base6Directions.Direction up)
+                IMyTerminalBlock reference = null, 
+                Base6Directions.Direction forward = Base6Directions.Direction.Forward,
+                Base6Directions.Direction up = Base6Directions.Direction.Up)
             {
                 if (Vector3D.IsZero(gridRotation)) //do we need to stop?
                 {   //well, that's easy
@@ -254,7 +256,7 @@ namespace IngameScript
                     IMyTerminalBlock refblock = reference ?? Controller;
                     MatrixD wm = refblock.WorldMatrix;
                     if (forward != Base6Directions.Direction.Forward || up != Base6Directions.Direction.Up)
-                    {
+                    {   //We change the trasformation matrix, so now forward/up directions are the ones we chose.
                         Vector3D old_forward = wm.GetDirectionVector(forward);
                         Vector3D old_up = wm.GetDirectionVector(up);
                         wm.SetDirectionVector(Base6Directions.Direction.Forward, old_forward);

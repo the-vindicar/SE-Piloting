@@ -22,35 +22,60 @@ namespace IngameScript
         /// <summary>
         /// Approaches the target slowly, until the selected block locks in.
         /// </summary>
-        public class DockingStrategy : AimedFlightStrategy
+        public class DockingStrategy : BasePilotingStrategy
         {
-            public DockingStrategy(Waypoint goal, IMyTerminalBlock clamp,
-                Base6Directions.Direction forward,
-                Base6Directions.Direction up) : base(goal, clamp, forward, up)
+            /// <summary>
+            /// How close to the maximum safe speed are we allowed to get.
+            /// </summary>
+            public double VelocityUsage = 0.9;
+            /// <summary>
+            /// Vector pointing directly away from the dock, world-space. 
+            /// If non-zero, ship will orient itself to face opposite of this vector, and will approach the dock riding on it.
+            /// If zero, ship will fly directly towards the dock, which may result in crooked or failed docking.
+            /// </summary>
+            public Vector3D Approach;
+            /// <summary>
+            /// Constructs docking strategy for a ship connector.
+            /// </summary>
+            /// <param name="goal">Location of matching connector block, world-space.</param>
+            /// <param name="approach"></param>
+            /// <param name="connector"></param>
+            public DockingStrategy(Waypoint goal, Vector3D approach, IMyShipConnector connector) 
+                : base(goal, connector, Base6Directions.Direction.Forward, Base6Directions.Direction.Up)
             {
-                MaxLinearSpeed = 1.0;
-                if (!(clamp is IMyShipConnector) && !(clamp is IMyLandingGear) && !(clamp is IMyShipMergeBlock))
-                    throw new ArgumentException("clamp block is not a connector, a merge block or a landing gear.");
+                MaxLinearSpeed = 2.0;
+                Approach = approach;
+                Approach.Normalize();
             }
 
-            public DockingStrategy(Waypoint goal, IMyTerminalBlock clamp) 
-                : this(goal, clamp, Base6Directions.Direction.Forward, Base6Directions.Direction.Up)
+            public DockingStrategy(Waypoint goal, Vector3D approach, IMyShipMergeBlock merger) 
+                : base(goal, merger, Base6Directions.Direction.Right, Base6Directions.Direction.Up)
             {
-                if (clamp is IMyShipMergeBlock)
-                {
-                    ReferenceForward = Base6Directions.Direction.Right;
-                    ReferenceUp = Base6Directions.Direction.Up;
-                }
-                else if (clamp is IMyLandingGear)
-                {
-                    ReferenceForward = Base6Directions.Direction.Down;
-                    ReferenceUp = Base6Directions.Direction.Forward;
-                }
-                else if (clamp is IMyShipConnector)
-                {
-                    ReferenceForward = Base6Directions.Direction.Forward;
-                    ReferenceUp = Base6Directions.Direction.Up;
-                }
+                MaxLinearSpeed = 2.0;
+                Approach = approach;
+                Approach.Normalize();
+            }
+
+            public DockingStrategy(Waypoint goal, Vector3D approach, IMyLandingGear gear)
+                : base(goal, gear, Base6Directions.Direction.Down, Base6Directions.Direction.Forward)
+            {
+                MaxLinearSpeed = 2.0;
+                Approach = approach;
+                Approach.Normalize();
+            }
+
+            public static void CalculateApproach(IMyShipConnector connector, out Vector3D pos, out Vector3D approach)
+            {
+                MatrixD wm = connector.WorldMatrix;
+                pos = wm.Translation;
+                approach = wm.GetDirectionVector(Base6Directions.Direction.Forward);
+            }
+
+            public static void CalculateApproach(IMyShipMergeBlock connector, out Vector3D pos, out Vector3D approach)
+            {
+                MatrixD wm = connector.WorldMatrix;
+                pos = wm.Translation;
+                approach = wm.GetDirectionVector(Base6Directions.Direction.Right);
             }
 
             public override bool Update(AutoPilot owner, ref Vector3D linearV, ref Vector3D angularV)
@@ -70,12 +95,29 @@ namespace IngameScript
                 Vector3D currentGoalPos = Goal.CurrentPosition;
                 Vector3D direction = currentGoalPos - wm.Translation;
                 double distance = direction.Normalize();
-                Vector3D facingdirection = direction; //we should face our goal, still.
+                double diff;
 
-                double diff = RotateToMatch(facingdirection, Vector3D.Zero,
-                    wm.GetDirectionVector(ReferenceForward),
-                    wm.GetDirectionVector(ReferenceUp),
-                    ref angularV);
+                if (!Vector3D.IsZero(Approach))
+                {
+                    diff = RotateToMatch(-Approach, Vector3D.Zero,
+                        wm.GetDirectionVector(ReferenceForward),
+                        wm.GetDirectionVector(ReferenceUp),
+                        ref angularV);
+                    PlaneD alignment = new PlaneD(wm.Translation, Approach);
+                    Vector3D alignedPos = alignment.Intersection(ref currentGoalPos, ref Approach);
+                    Vector3D correction = alignedPos - wm.Translation;
+                    if (!Vector3D.IsZero(correction, PositionEpsilon)) //are we on approach vector?
+                    {   //no - let's move there
+                        direction = correction;
+                        distance = direction.Normalize(); 
+                    }
+                    //otherwise, we can keep our current direction
+                }
+                else
+                    diff = RotateToMatch(direction, Vector3D.Zero,
+                        wm.GetDirectionVector(ReferenceForward),
+                        wm.GetDirectionVector(ReferenceUp),
+                        ref angularV);
                 if (distance > PositionEpsilon) //Are we too far from our desired position?
                 {
                     //rotate the ship to face it

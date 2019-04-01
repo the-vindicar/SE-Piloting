@@ -36,10 +36,11 @@ namespace IngameScript
             pilot = new AutoPilot(GridTerminalSystem, Me);
             pilot.Log += (msg) => screen?.WritePublicText(msg+"\n", true);
             pilot.RepeatLastTask = true;
-            IMyFunctionalBlock b = GridTerminalSystem.GetBlockWithName("Landing Gear") as IMyFunctionalBlock;
-            Waypoint goal = new Waypoint("GPS:Docking Computer:33.75:13.78:55.00:");
+            IMyShipConnector b = GridTerminalSystem.GetBlockWithName("Connector") as IMyShipConnector;
+            Waypoint goal = new Waypoint("GPS:Docking Connector:32.50:13.28:55.01:");
+            Vector3D approach = new Vector3D(-1, 0, 0);
             goal.TargetDistance = 0.0;
-            var strategy = new DockingStrategy(goal, b);
+            var strategy = new DockingStrategy(goal, approach, b);
             pilot.Tasks.Add(strategy);
         }
 
