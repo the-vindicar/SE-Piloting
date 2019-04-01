@@ -36,41 +36,32 @@ namespace IngameScript
             pilot = new AutoPilot(GridTerminalSystem, Me);
             pilot.Log += (msg) => screen?.WritePublicText(msg+"\n", true);
             pilot.RepeatLastTask = true;
-            //pilot.Tasks.Add(new AimedFlightStrategy("GPS:Test:20.71:23.77:37.54:"));
-            //pilot.Tasks.Add(new AimedFlightStrategy("GPS:Test2:21.78:171.56:28.91:"));
-            //pilot.Tasks.Add(new AimedFlightStrategy("GPS:Test:20.71:23.77:37.54:"));
+            IMyFunctionalBlock b = GridTerminalSystem.GetBlockWithName("Landing Gear") as IMyFunctionalBlock;
+            Waypoint goal = new Waypoint("GPS:Docking Computer:33.75:13.78:55.00:");
+            goal.TargetDistance = 0.0;
+            var strategy = new DockingStrategy(goal, b);
+            pilot.Tasks.Add(strategy);
+        }
+
+        void Done()
+        {
+            pilot.DisableOverrides();
+            pilot.Controller.DampenersOverride = true;
+            Me.Enabled = false;
         }
 
         public void Main(string argument, UpdateType updateSource)
         {
+            screen?.WritePublicText("", false);
             if (updateSource != UpdateType.Update10 && argument == "stop")
             {
-                pilot.DisableOverrides();
-                pilot.Controller.DampenersOverride = true;
-                Me.Enabled = false;
+                Done();
                 return;
             }
-            screen?.WritePublicText("", false);
-            if (pilot.Tasks.Count == 0)
+            if (pilot.Update(Runtime.TimeSinceLastRun.TotalSeconds))
             {
-                foreach (IMySensorBlock s in sensors)
-                {
-                    entities.Clear();
-                    s.DetectedEntities(entities);
-                    if (entities.Count > 0)
-                    {
-                        Waypoint goal = new Waypoint(entities[0]);
-                        goal.TargetDistance = 5.0;
-                        var strategy = new AimedFlightStrategy(goal);
-                        pilot.Tasks.Add(strategy);
-                        return;
-                    }
-                }
-            }
-            else
-            {
-                pilot.CurrentTask.Goal.UpdateEntity(sensors);
-                pilot.Update(Runtime.TimeSinceLastRun.TotalSeconds);
+                Done();
+                return;
             }
         }
     }

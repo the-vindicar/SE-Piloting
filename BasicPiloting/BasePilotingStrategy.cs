@@ -29,6 +29,8 @@ namespace IngameScript
             /// If null, then ship controller block is used for that purpose.
             /// </summary>
             public IMyTerminalBlock Reference;
+            public Base6Directions.Direction ReferenceForward;
+            public Base6Directions.Direction ReferenceUp;
             /// <summary>
             /// Current goal: point in world-space to reach, or entity to pursue.
             /// If null, then the strategy will do absolutely nothing, but will still report its task as incomplete.
@@ -44,8 +46,18 @@ namespace IngameScript
             /// Constructs the strategy with given goal and (optional) reference block.
             /// </summary>
             /// <param name="goal">Goal to pursue.</param>
-            /// <param name="reference">Reference block to use, or null to use ship controller.</param>
-            public BasePilotingStrategy(Waypoint goal, IMyTerminalBlock reference = null) { Goal = goal; Reference = reference; }
+            /// <param name="reference">Reference block to use.</param>
+            public BasePilotingStrategy(Waypoint goal, IMyTerminalBlock reference,
+                Base6Directions.Direction forward = Base6Directions.Direction.Forward,
+                Base6Directions.Direction up = Base6Directions.Direction.Up)
+            {
+                if (!Base6Directions.IsValidBlockOrientation(forward, up))
+                    throw new ArgumentException("Invalid set of directions!");
+                Goal = goal;
+                Reference = reference;
+                ReferenceForward = forward;
+                ReferenceUp = up;
+            }
             /// <summary>
             /// Queries the strategy on which linear and angular velocities the ship should have.
             /// </summary>

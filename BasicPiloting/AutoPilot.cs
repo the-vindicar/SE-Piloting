@@ -151,7 +151,7 @@ namespace IngameScript
                     //query the task.
                     bool done = Tasks[0].Update(this, ref LinearV, ref AngularV);
                     //whether its done or not, apply changes to thrust/rotation
-                    SetRotationVelocity(AngularV);
+                    SetRotationVelocity(AngularV, Tasks[0].Reference, Tasks[0].ReferenceForward, Tasks[0].ReferenceUp);
                     SetThrustVector(LinearV);
                     if (done && (!RepeatLastTask || (Tasks.Count > 1)))
                     {   //current task has been completed, and we shouldn't keep it
@@ -230,7 +230,11 @@ namespace IngameScript
             /// Configures gyros to apply required rotation.
             /// </summary>
             /// <param name="gridRotation">Angular velocity of the ship in grid-space.</param>
-            void SetRotationVelocity(Vector3D gridRotation)
+            /// <param name="reference">Reference block used (controller otherwise).</param>
+            void SetRotationVelocity(Vector3D gridRotation, 
+                IMyTerminalBlock reference, 
+                Base6Directions.Direction forward,
+                Base6Directions.Direction up)
             {
                 if (Vector3D.IsZero(gridRotation)) //do we need to stop?
                 {   //well, that's easy
@@ -247,7 +251,16 @@ namespace IngameScript
                     //a bit of a mess with X axis sign... no idea why, but it's necessary to flip it.
                     Vector3D fixedGridRotation = new Vector3D(-gridRotation.X, gridRotation.Y, gridRotation.Z);
                     //Translate rotation vector from grid-space to world-space.
-                    Vector3D worldRotation = Vector3D.TransformNormal(gridRotation, Controller.WorldMatrix);
+                    IMyTerminalBlock refblock = reference ?? Controller;
+                    MatrixD wm = refblock.WorldMatrix;
+                    if (forward != Base6Directions.Direction.Forward || up != Base6Directions.Direction.Up)
+                    {
+                        Vector3D old_forward = wm.GetDirectionVector(forward);
+                        Vector3D old_up = wm.GetDirectionVector(up);
+                        wm.SetDirectionVector(Base6Directions.Direction.Forward, old_forward);
+                        wm.SetDirectionVector(Base6Directions.Direction.Up, old_up);
+                    }
+                    Vector3D worldRotation = Vector3D.TransformNormal(gridRotation, wm);
                     foreach (IMyGyro g in Gyros)
                     {
                         //transform rotation vector into this gyro's block-space

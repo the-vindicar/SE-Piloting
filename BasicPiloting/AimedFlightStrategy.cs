@@ -35,7 +35,9 @@ namespace IngameScript
             /// </summary>
             /// <param name="goal">Goal to pursue.</param>
             /// <param name="reference">Reference block to use, or null to use ship controller.</param>
-            public AimedFlightStrategy(Waypoint goal, IMyTerminalBlock reference = null) : base(goal, reference) { }
+            public AimedFlightStrategy(Waypoint goal, IMyTerminalBlock reference,
+                Base6Directions.Direction forward = Base6Directions.Direction.Forward,
+                Base6Directions.Direction up = Base6Directions.Direction.Up) : base(goal, reference, forward, up) { }
             /// <summary>
             /// Queries the strategy on which linear and angular velocities the ship should have.
             /// </summary>
@@ -65,8 +67,8 @@ namespace IngameScript
                 {
                     //rotate the ship to face it
                     double diff = RotateToMatch(facingdirection, Vector3D.Zero,
-                        wm.GetDirectionVector(Base6Directions.Direction.Forward),
-                        wm.GetDirectionVector(Base6Directions.Direction.Up),
+                        wm.GetDirectionVector(ReferenceForward),
+                        wm.GetDirectionVector(ReferenceUp),
                         ref angularV);
                     if (diff > OrientationEpsilon) //we still need to rotate
                         linearV = Goal.Velocity; //match velocities with our target, then.

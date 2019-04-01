@@ -35,7 +35,7 @@ namespace IngameScript
             /// </summary>
             /// <param name="goal">Goal to pursue.</param>
             /// <param name="reference">Reference block to use, or null to use ship controller.</param>
-            public UnaimedFlightStrategy(Waypoint goal, IMyTerminalBlock reference = null) : base(goal, reference) { }
+            public UnaimedFlightStrategy(Waypoint goal, IMyTerminalBlock reference) : base(goal, reference) { }
             /// <summary>
             /// Queries the strategy on which linear and angular velocities the ship should have.
             /// </summary>

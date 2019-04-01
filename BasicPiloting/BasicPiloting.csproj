@@ -99,6 +99,7 @@
     <Compile Include="AutoPilot.cs" />
     <Compile Include="BasePilotingStrategy.cs" />
     <Compile Include="AimedFlightStrategy.cs" />
+    <Compile Include="DockingStrategy.cs" />
     <Compile Include="PilotingGoal.cs" />
     <Compile Include="UnaimedFlightStrategy.cs" />
     <Compile Include="AimingStrategy.cs" />

@@ -25,7 +25,9 @@ namespace IngameScript
         /// </summary>
         public class RammingStrategy : BasePilotingStrategy
         {
-            public RammingStrategy(Waypoint goal, IMyTerminalBlock reference = null) : base(goal, reference) { }
+            public RammingStrategy(Waypoint goal, IMyTerminalBlock reference,
+                Base6Directions.Direction forward = Base6Directions.Direction.Forward,
+                Base6Directions.Direction up = Base6Directions.Direction.Up) : base(goal, reference, forward, up) { }
             public override bool Update(AutoPilot owner, ref Vector3D linearV, ref Vector3D angularV)
             {
                 if (Goal == null) return false;
@@ -38,8 +40,8 @@ namespace IngameScript
                 linearV = direction * MaxLinearSpeed + Goal.Velocity;
                 //angular velocity
                 double diff = RotateToMatch(direction, Vector3D.Zero,
-                    wm.GetDirectionVector(Base6Directions.Direction.Forward),
-                    wm.GetDirectionVector(Base6Directions.Direction.Up),
+                    wm.GetDirectionVector(ReferenceForward),
+                    wm.GetDirectionVector(ReferenceUp),
                     ref angularV);
                 if (diff < OrientationEpsilon)
                     angularV = Vector3D.Zero;
