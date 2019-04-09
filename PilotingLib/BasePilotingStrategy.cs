@@ -40,7 +40,7 @@ namespace IngameScript
             /// Maximum speed (relative to the goal) that ship is allowed to reach.
             /// </summary>
             public double MaxLinearSpeed = 100.0;
-            public double OrientationEpsilon = 1e-5;
+            public double OrientationEpsilon = 1e-4;
             public double PositionEpsilon = 1e-1;
             /// <summary>
             /// Constructs the strategy with given goal and (optional) reference block.

@@ -81,20 +81,13 @@ namespace IngameScript
             public override bool Update(AutoPilot owner, ref Vector3D linearV, ref Vector3D angularV)
             {
                 if (Goal == null) return false;
-                if (TryLockIn())
-                {
-                    linearV = Goal.Velocity;
-                    angularV = Vector3D.Zero;
-                    return true;
-                }
-                bool distanceok = false;
-                bool orientationok = false;
                 IMyTerminalBlock reference = Reference ?? owner.Controller;
                 MatrixD wm = reference.WorldMatrix;
                 Goal.UpdateTime(owner.elapsedTime);
                 Vector3D currentGoalPos = Goal.CurrentPosition;
                 Vector3D direction = currentGoalPos - wm.Translation;
                 double distance = direction.Normalize();
+                double target_distance = distance;
                 double diff;
 
                 if (!Vector3D.IsZero(Approach))
@@ -109,7 +102,7 @@ namespace IngameScript
                     if (!Vector3D.IsZero(correction, PositionEpsilon)) //are we on approach vector?
                     {   //no - let's move there
                         direction = correction;
-                        distance = direction.Normalize(); 
+                        distance = direction.Normalize();
                     }
                     //otherwise, we can keep our current direction
                 }
@@ -118,33 +111,22 @@ namespace IngameScript
                         wm.GetDirectionVector(ReferenceForward),
                         wm.GetDirectionVector(ReferenceUp),
                         ref angularV);
-                if (distance > PositionEpsilon) //Are we too far from our desired position?
+                //rotate the ship to face it
+                if (diff > OrientationEpsilon) //we still need to rotate
+                    linearV = Goal.Velocity; //match velocities with our target, then.
+                else //we are good
                 {
-                    //rotate the ship to face it
-                    if (diff > OrientationEpsilon) //we still need to rotate
-                        linearV = Goal.Velocity; //match velocities with our target, then.
-                    else //we are good
-                    {
-                        orientationok = true;
-                        //how quickly can we go, assuming we still need to stop at the end?
-                        double accel = owner.GetMaxAccelerationFor(-direction);
-                        double braking_time = Math.Sqrt(2 * distance / accel);
-                        double acceptable_velocity = Math.Min(VelocityUsage * accel * braking_time, MaxLinearSpeed);
-                        //extra slowdown when close to the target
-                        acceptable_velocity = Math.Min(acceptable_velocity, distance);
-                        //moving relative to the target
-                        linearV = direction * acceptable_velocity + Goal.Velocity;
-                        angularV = Vector3D.Zero;
-                    }
-                }
-                else //we are close to our ideal position - attempting to rotate the ship is not a good idea.
-                {
-                    distanceok = true;
-                    orientationok = true;
-                    linearV = Goal.Velocity;
+                    //how quickly can we go, assuming we still need to stop at the end?
+                    double accel = owner.GetMaxAccelerationFor(-direction);
+                    double braking_time = Math.Sqrt(2 * distance / accel);
+                    double acceptable_velocity = Math.Min(VelocityUsage * accel * braking_time, MaxLinearSpeed);
+                    //extra slowdown when close to the target
+                    acceptable_velocity = Math.Min(acceptable_velocity, distance);
+                    //moving relative to the target
+                    linearV = direction * acceptable_velocity + Goal.Velocity;
                     angularV = Vector3D.Zero;
                 }
-                return distanceok && orientationok;
+                return TryLockIn() || (target_distance < PositionEpsilon);
             }
 
             public bool TryLockIn()
@@ -156,7 +138,7 @@ namespace IngameScript
                 else if (Reference is IMyShipMergeBlock)
                     return TryLockIn(Reference as IMyShipMergeBlock);
                 else
-                    return false;
+                    throw new Exception("Somehow, reference block is not a lockable one!");
             }
 
             public void Unlock()
@@ -199,7 +181,6 @@ namespace IngameScript
             bool TryLockIn(IMyLandingGear clamp)
             {
                 clamp.Enabled = true;
-                clamp.AutoLock = true;
                 if (clamp.LockMode == LandingGearMode.ReadyToLock)
                     clamp.Lock();
                 return clamp.LockMode == LandingGearMode.Locked;

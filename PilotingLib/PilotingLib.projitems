@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>a4c34238-b560-4eb3-adef-016feff61fcf</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>PilotingLib</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)AimedFlightStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AimingStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AutoPilot.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BasePilotingStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DockingStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PilotingGoal.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)StateMachine.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)RammingStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)UnaimedFlightStrategy.cs" />
+  </ItemGroup>
+</Project>

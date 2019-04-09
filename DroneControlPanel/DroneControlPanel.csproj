@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{ACDEC0CD-5C6C-4F2E-B790-1F2EF37BD293}</ProjectGuid>
+    <ProjectGuid>{602EE81F-2DBA-4030-B2AC-7C673EF91B41}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>IngameScript</RootNamespace>
-    <AssemblyName>BasicPiloting</AssemblyName>
+    <AssemblyName>DroneControlPanel</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -90,20 +90,12 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="MDKUtilities">
-      <HintPath>c:\users\vindicar\appdata\local\microsoft\visualstudio\15.0_02480733\extensions\z31vrnft.thn\MDKUtilities.dll</HintPath>
+      <HintPath>c:\users\vindicar\appdata\local\microsoft\visualstudio\15.0_02480733\extensions\nbnibnx4.liq\MDKUtilities.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Analyzer Include="c:\users\vindicar\appdata\local\microsoft\visualstudio\15.0_02480733\extensions\z31vrnft.thn\Analyzers\MDKAnalyzer.dll" />
+    <Analyzer Include="c:\users\vindicar\appdata\local\microsoft\visualstudio\15.0_02480733\extensions\nbnibnx4.liq\Analyzers\MDKAnalyzer.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AutoPilot.cs" />
-    <Compile Include="BasePilotingStrategy.cs" />
-    <Compile Include="AimedFlightStrategy.cs" />
-    <Compile Include="DockingStrategy.cs" />
-    <Compile Include="PilotingGoal.cs" />
-    <Compile Include="UnaimedFlightStrategy.cs" />
-    <Compile Include="AimingStrategy.cs" />
-    <Compile Include="RammingStrategy.cs" />
     <Compile Include="MDK\Bootstrapper.cs" />
     <AdditionalFiles Include="MDK\MDK.options">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

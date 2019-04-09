@@ -67,22 +67,13 @@ namespace IngameScript
             /// <param name="gps">GPS string. Typical format is "GPS:Point name:59.55:-11.63:-22.81:"</param>
             public Waypoint(string gps)
             {
-                //"GPS: Slam Here:59.55:-11.63:-22.81:"
-                if (gps.StartsWith("GPS:"))
-                    gps = gps.Substring(4, gps.Length - 4);
-                else
-                    throw new ArgumentException($"'${gps}' is not a valid GPS string.");
-                //" Slam Here:59.55:-11.63:-22.81"
-                string[] parts = gps.Split(gpsSep, 5);
-                if (parts.Length != 5)
-                    throw new ArgumentException($"'${gps}' is not a valid GPS string.");
-                double x = double.Parse(parts[parts.Length - 4]);
-                double y = double.Parse(parts[parts.Length - 3]);
-                double z = double.Parse(parts[parts.Length - 2]);
                 Entity = new MyDetectedEntityInfo();
-                _Position = new Vector3D(x, y, z);
                 Velocity = Vector3D.Zero;
-                Name = parts[0];
+                string name;
+                if (TryParseGPS(gps, out _Position, out name))
+                    Name = name;
+                else
+                    throw new ArgumentException($"'{gps}' is not a valid GPS string");
             }
             /// <summary>
             /// Creates a stationary or moving waypoint, using given data.
@@ -209,6 +200,32 @@ namespace IngameScript
             public void UpdateTime(double milliseconds)
             {
                 _ElapsedTime += milliseconds;
+            }
+
+            public static bool TryParseGPS(string gps, out Vector3D vec, out string name)
+            {
+                //"GPS: Slam Here:59.55:-11.63:-22.81:"
+                vec = Vector3D.Zero;
+                name = "";
+                if (gps.StartsWith("GPS:"))
+                    gps = gps.Substring(4, gps.Length - 4);
+                else
+                    return false;
+                //" Slam Here:59.55:-11.63:-22.81"
+                string[] parts = gps.Split(gpsSep, 5);
+                if (parts.Length != 5)
+                    return false;
+                double x, y, z;
+                if (double.TryParse(parts[parts.Length - 4], out x)
+                    && double.TryParse(parts[parts.Length - 3], out y)
+                    && double.TryParse(parts[parts.Length - 2], out z))
+                {
+                    vec = new Vector3D(x, y, z);
+                    name = parts[1];
+                    return true;
+                }
+                else
+                    return false;
             }
         }
     }

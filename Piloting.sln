@@ -3,15 +3,25 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.168
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasicPiloting", "BasicPiloting\BasicPiloting.csproj", "{ACDEC0CD-5C6C-4F2E-B790-1F2EF37BD293}"
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "PilotingLib", "PilotingLib\PilotingLib.shproj", "{A4C34238-B560-4EB3-ADEF-016FEFF61FCF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SalvageDrone", "SalvageDrone\SalvageDrone.csproj", "{1B38B6FC-8793-4B7B-A8E6-CC362E49DA8A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DroneControlPanel", "DroneControlPanel\DroneControlPanel.csproj", "{602EE81F-2DBA-4030-B2AC-7C673EF91B41}"
 EndProject
 Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		PilotingLib\PilotingLib.projitems*{1b38b6fc-8793-4b7b-a8e6-cc362e49da8a}*SharedItemsImports = 4
+		PilotingLib\PilotingLib.projitems*{a4c34238-b560-4eb3-adef-016feff61fcf}*SharedItemsImports = 13
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{ACDEC0CD-5C6C-4F2E-B790-1F2EF37BD293}.Debug|x64.ActiveCfg = Debug|x64
-		{ACDEC0CD-5C6C-4F2E-B790-1F2EF37BD293}.Debug|x64.Build.0 = Debug|x64
+		{1B38B6FC-8793-4B7B-A8E6-CC362E49DA8A}.Debug|x64.ActiveCfg = Debug|x64
+		{1B38B6FC-8793-4B7B-A8E6-CC362E49DA8A}.Debug|x64.Build.0 = Debug|x64
+		{602EE81F-2DBA-4030-B2AC-7C673EF91B41}.Debug|x64.ActiveCfg = Debug|x64
+		{602EE81F-2DBA-4030-B2AC-7C673EF91B41}.Debug|x64.Build.0 = Debug|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

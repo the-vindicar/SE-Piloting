@@ -19,29 +19,16 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        IMyTextPanel screen = null;
+        const string AntennaName = "Antenna";
+        const string TransmitTag = "SalvageDRone";
+
         List<IMySensorBlock> sensors = new List<IMySensorBlock>();
         List<MyDetectedEntityInfo> entities = new List<MyDetectedEntityInfo>();
         AutoPilot pilot;
         public Program()
         {
-            GridTerminalSystem.GetBlocksOfType<IMyTextPanel>(null, (p) =>
-            {
-                if (p.IsSameConstructAs(Me)) screen = p;
-                return false;
-            });
-            screen?.WritePublicText("", false);
-            GridTerminalSystem.GetBlocksOfType(sensors);
-            Runtime.UpdateFrequency = UpdateFrequency.Update10;
             pilot = new AutoPilot(GridTerminalSystem, Me);
-            pilot.Log += (msg) => screen?.WritePublicText(msg+"\n", true);
-            pilot.RepeatLastTask = true;
-            IMyShipConnector b = GridTerminalSystem.GetBlockWithName("Connector") as IMyShipConnector;
-            Waypoint goal = new Waypoint("GPS:Docking Connector:32.50:13.28:55.01:");
-            Vector3D approach = new Vector3D(-1, 0, 0);
-            goal.TargetDistance = 0.0;
-            var strategy = new DockingStrategy(goal, approach, b);
-            pilot.Tasks.Add(strategy);
+            GridTerminalSystem.GetBlocksOfType(sensors, (b) => b.CubeGrid.EntityId == Me.CubeGrid.EntityId);
         }
 
         void Done()
@@ -53,17 +40,6 @@ namespace IngameScript
 
         public void Main(string argument, UpdateType updateSource)
         {
-            screen?.WritePublicText("", false);
-            if (updateSource != UpdateType.Update10 && argument == "stop")
-            {
-                Done();
-                return;
-            }
-            if (pilot.Update(Runtime.TimeSinceLastRun.TotalSeconds))
-            {
-                Done();
-                return;
-            }
         }
     }
 }

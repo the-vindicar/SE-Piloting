@@ -26,13 +26,14 @@ namespace IngameScript
         public class AutoPilot
         {
             /// <summary>
-            /// List of tasks to complete, in order of completion.
+            /// Sequence of tasks to complete, in order of completion.
+            /// Assigning to this property will result in current task (if any) being aborted.
             /// </summary>
             public List<BasePilotingStrategy> Tasks = new List<BasePilotingStrategy>();
             /// <summary>
             /// Current task, or null if there is none.
             /// </summary>
-            public BasePilotingStrategy CurrentTask { get { return Tasks.Count > 0 ? Tasks.First() : null; } }
+            public BasePilotingStrategy CurrentTask { get { return Tasks.Count > 0 ? Tasks[0] : null; } }
             /// <summary>
             /// Ship controller (cockpit, flight station or remote controller) used by the autopilot. 
             /// The ship MUST have at least one installed.
@@ -43,11 +44,6 @@ namespace IngameScript
             /// </summary>
             public double elapsedTime { get; private set; }
             /// <summary>
-            /// If true, then last task in the list will not be discarded even when it's completed.
-            /// Useful for maintaining position or keeping pursuit of the target.
-            /// </summary>
-            public bool RepeatLastTask = false;
-            /// <summary>
             /// Ship velocities just before last task update.
             /// </summary>
             public MyShipVelocities Velocities { get; private set; }
@@ -55,21 +51,15 @@ namespace IngameScript
             /// Ship mass jsut before last task update.
             /// </summary>
             public MyShipMass Mass { get; private set; }
-            
-            public MatrixD WorldMatrix { get { return Controller.WorldMatrix; } }
-            public Vector3D Position { get { return Controller.WorldMatrix.Translation; } }
-            public Vector3D Forward { get { return Controller.WorldMatrix.GetDirectionVector(Base6Directions.Direction.Forward); } }
-            public Vector3D Up { get { return Controller.WorldMatrix.GetDirectionVector(Base6Directions.Direction.Up); } }
-            public Vector3D Left { get { return Controller.WorldMatrix.GetDirectionVector(Base6Directions.Direction.Left); } }
-            public Vector3D Velocity { get { return Controller.GetShipVelocities().LinearVelocity; } }
-            public Vector3D Rotation { get { return Controller.GetShipVelocities().AngularVelocity; } }
 
-            public delegate void LogFunction(string msg);
+            public enum Gravity { None, Natural, Artificial, Total }
+            public Gravity UseGravity = Gravity.None;
+            
             /// <summary>
             /// This function can be used for debug logging, but it's up to user to provide actual log output.
             /// Like Echo() or a screen.
             /// </summary>
-            public LogFunction Log = null;
+            public Action<string> Log = null;
             /// <summary>
             /// Create autopilot using specific set of blocks.
             /// </summary>
@@ -131,15 +121,10 @@ namespace IngameScript
             /// <returns>True if all tasks have been completed.</returns>
             public bool Update(double elapsed)
             {
-                if (Tasks.Count == 0) //if there is nothing to do, drift
+                if (CurrentTask == null) //if there is nothing to do, drift
                     return true; //report that we are done
                 else //there is something to do
                 {
-                    if (Tasks.Count > 0)
-                    {
-                        Log?.Invoke($"Task (total {Tasks.Count}): {Tasks[0].GetType().Name}");
-                        Log?.Invoke(Tasks[0].Goal.ToString());
-                    }
                     Velocities = Controller.GetShipVelocities();
                     Mass = Controller.CalculateShipMass();
                     // current velocities
@@ -149,21 +134,26 @@ namespace IngameScript
                     Controller.DampenersOverride = false;
                     elapsedTime = elapsed;
                     //query the task.
-                    bool done = Tasks[0].Update(this, ref LinearV, ref AngularV);
+                    bool done = CurrentTask.Update(this, ref LinearV, ref AngularV);
+                    Log($"Task {CurrentTask.ToString()}\nDone: {done}\nLinear {LinearV.ToString()}\nAngular {AngularV.ToString()}");
                     //whether its done or not, apply changes to thrust/rotation
-                    SetRotationVelocity(AngularV, Tasks[0].Reference, Tasks[0].ReferenceForward, Tasks[0].ReferenceUp);
+                    SetRotationVelocity(AngularV, CurrentTask.Reference, CurrentTask.ReferenceForward, CurrentTask.ReferenceUp);
                     SetThrustVector(LinearV);
-                    if (done && (!RepeatLastTask || (Tasks.Count > 1)))
-                    {   //current task has been completed, and we shouldn't keep it
-                        Tasks.RemoveAt(0); //remove current task
-                        if (Tasks.Count == 0) //that was the last task
+                    if (done)
+                    {   //current task has been completed
+                        Tasks.RemoveAt(0);
+                        if (Tasks.Count > 0)
+                            return false;
+                        else
                         {
                             //set the ship to manual piloting
                             Controller.DampenersOverride = true;
                             DisableOverrides();
+                            return true;
                         }
                     }
-                    return done;
+                    else
+                        return false;
                 }
             }
             /// <summary>
@@ -198,12 +188,25 @@ namespace IngameScript
                 //}
                 if (!Vector3D.IsZero(deltaV, 1e-3)) // it does, significantly.
                 {
+                    Vector3D grav;
+                    switch (UseGravity)
+                    {
+                        case Gravity.Natural: grav = Controller.GetNaturalGravity(); break;
+                        case Gravity.Artificial: grav = Controller.GetArtificialGravity(); break;
+                        case Gravity.Total: grav = Controller.GetTotalGravity(); break;
+                        default: grav = Vector3D.Zero; break;
+                    }
                     double deltavabs = deltaV.Normalize();
                     //Estimate thrust required to stop before the next update.
                     //Prevents the ship from oscillating back and forth around the target.
                     double maxaccel = deltavabs / elapsedTime; 
                     MyShipMass mass = Controller.CalculateShipMass();
                     double requiredthrust = mass.TotalMass * maxaccel;
+                    if (!Vector3D.IsZero(grav))
+                    {
+                        deltaV = requiredthrust * deltaV - mass.TotalMass * grav;
+                        requiredthrust = deltaV.Normalize();
+                    }
                     //Calculate how much thrust each thruster can contribute to pushing the ship in required direction.
                     //It depends on thruster overall power, its effectiveness (ion/atmo) and direction.
                     double totalthrustvalue = 0.0;
@@ -257,10 +260,10 @@ namespace IngameScript
                     MatrixD wm = refblock.WorldMatrix;
                     if (forward != Base6Directions.Direction.Forward || up != Base6Directions.Direction.Up)
                     {   //We change the trasformation matrix, so now forward/up directions are the ones we chose.
-                        Vector3D old_forward = wm.GetDirectionVector(forward);
-                        Vector3D old_up = wm.GetDirectionVector(up);
-                        wm.SetDirectionVector(Base6Directions.Direction.Forward, old_forward);
-                        wm.SetDirectionVector(Base6Directions.Direction.Up, old_up);
+                        Vector3D new_forward = wm.GetDirectionVector(forward);
+                        Vector3D new_up = wm.GetDirectionVector(up);
+                        wm.Forward = new_forward;
+                        wm.Up = new_up;
                     }
                     Vector3D worldRotation = Vector3D.TransformNormal(gridRotation, wm);
                     foreach (IMyGyro g in Gyros)
