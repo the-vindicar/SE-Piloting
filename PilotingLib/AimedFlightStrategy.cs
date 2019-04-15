@@ -35,9 +35,13 @@ namespace IngameScript
             /// </summary>
             /// <param name="goal">Goal to pursue.</param>
             /// <param name="reference">Reference block to use, or null to use ship controller.</param>
+            /// <param name="forward">Direction on the reference block that is considered "forward".</param>
+            /// <param name="up">Direction on the reference block that is considered "up".</param>
             public AimedFlightStrategy(Waypoint goal, IMyTerminalBlock reference,
                 Base6Directions.Direction forward = Base6Directions.Direction.Forward,
-                Base6Directions.Direction up = Base6Directions.Direction.Up) : base(goal, reference, forward, up) { }
+                Base6Directions.Direction up = Base6Directions.Direction.Up) : base(goal, reference, forward, up)
+            {
+            }
             /// <summary>
             /// Queries the strategy on which linear and angular velocities the ship should have.
             /// </summary>

@@ -24,6 +24,7 @@ namespace IngameScript
         IMyRadioAntenna Antenna;
         IMyShipConnector Connector;
         IMyLandingGear Clamp;
+        List<IMyBatteryBlock> Batteries = new List<IMyBatteryBlock>();
         List<IMySensorBlock> Sensors = new List<IMySensorBlock>();
         List<MyDetectedEntityInfo> Entities = new List<MyDetectedEntityInfo>();
         List<IMyThrust> Thrusters = new List<IMyThrust>();
@@ -37,6 +38,8 @@ namespace IngameScript
         #region Serialized variables
         //[General]
         double AbortDistance;
+        double ScanningDistance;
+        double MaxSpeed;
         string TransmitTag;
         Vector3D DockLocation = Vector3D.Zero;
         Vector3D DockApproachVector = Vector3D.Zero;
@@ -62,6 +65,8 @@ namespace IngameScript
                         Gyros.Add(b as IMyGyro);
                     else if (b is IMySensorBlock)
                         Sensors.Add(b as IMySensorBlock);
+                    else if (b is IMyBatteryBlock)
+                        Batteries.Add(b as IMyBatteryBlock);
                     else if (b is IMyShipController)
                         Controller = b as IMyShipController;
                     else if (b is IMyShipConnector)
@@ -92,12 +97,11 @@ namespace IngameScript
             }
             Message($"Drone {Me.CubeGrid.CustomName} IGC ID: 0x{IGC.Me:X}");
             logScreen = Me.GetSurface(0);
-            Pilot.Log = (s) => logScreen?.WriteText(s, true);
+            //Pilot.Log = (s) => logScreen?.WriteText(s, true);
         }
 
         public void Main(string argument, UpdateType updateSource)
         {
-            logScreen?.WriteText("", false);
             if ((updateSource & ~(UpdateType.Update1 | UpdateType.Update10 | UpdateType.Update100)) != 0)
             {   //we have been triggered by an external event.
                 ProcessCommand(argument);
@@ -112,6 +116,8 @@ namespace IngameScript
         public void Message(string message)
         {
             Echo(message);
+            logScreen?.WriteText(message, true);
+            logScreen?.WriteText("\n", true);
             if (!string.IsNullOrEmpty(TransmitTag) && (Antenna?.IsWorking ?? false))
                 IGC.SendBroadcastMessage(TransmitTag, message);
         }
@@ -122,12 +128,13 @@ namespace IngameScript
                 switch (Cmd.Argument(0))
                 {
                     case "id": Message($"Drone computer IGC ID: 0x{IGC.Me:X}"); break;
-                    case "start": Start(); break;
+                    case "start": Start(Cmd.Argument(1)); break;
                     case "halt": Halt("Warning: drone halted."); break;
                     case "reload": Reload(); break;
                     case "recall": Recall(); break;
                     case "process_message": ProcessUnicast(); break;
-                    default: Message("Unknown command: " + Cmd.Argument(0)); break;
+                    default:
+                        Start(command);  break;
                 }
         }
 
@@ -145,7 +152,7 @@ namespace IngameScript
             }
         }
 
-        void Start()
+        void Start(string arg)
         {
             if (State_Machine.CurrentState != "")
             {
@@ -153,8 +160,8 @@ namespace IngameScript
                 return;
             }
             string _;
-            if (!Waypoint.TryParseGPS(Cmd.Argument(1), out TargetLocation, out _) &&
-                !Vector3D.TryParse(Cmd.Argument(1), out TargetLocation))
+            if (!Waypoint.TryParseGPS(arg, out TargetLocation, out _) &&
+                !Vector3D.TryParse(arg, out TargetLocation))
             {
                 Message("Location must be a GPS string or a Vector3D string representation.");
                 return;
@@ -211,6 +218,8 @@ namespace IngameScript
             if (!ini.TryParse(data, out result))
                 throw new FormatException($"Failed to parse configuration:\n{result.Error}\nLine: {result.LineNo}");
             AbortDistance = ini.Get("General", "AbortDistance").ToDouble(3000.0);
+            ScanningDistance = ini.Get("General", "ScanningDistance").ToDouble(40.0);
+            MaxSpeed = ini.Get("General", "MaxSpeed").ToDouble(100.0);
             TransmitTag = ini.Get("General", "TransmitTag").ToString("");
             if (!string.IsNullOrEmpty(TransmitTag))
                 IGC.UnicastListener.SetMessageCallback("process_message");
@@ -288,6 +297,8 @@ namespace IngameScript
         public void Save()
         {
             ini.Set("General", "AbortDistance", AbortDistance);
+            ini.Set("General", "ScanningDistance", ScanningDistance);
+            ini.Set("General", "MaxSpeed", MaxSpeed);
             ini.Set("General", "TransmitTag", TransmitTag);
             ini.Set("General", "Dock", DockLocation.ToString());
             ini.Set("General", "DockApproach", DockApproachVector.ToString());
@@ -322,17 +333,9 @@ namespace IngameScript
 
         IEnumerable<string> Launch()
         {
+            logScreen?.WriteText("", false);
+            Message($"Target: {TargetLocation.ToString()}");
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
-            Clamp.Unlock();
-            Clamp.AutoLock = false;
-            Vector3D detach = DockLocation + DockApproachVector * 2 * Me.CubeGrid.WorldVolume.Radius;
-            Pilot.Tasks.Clear();
-            Pilot.Tasks.Add(new UnaimedFlightStrategy(detach, Connector));
-            Connector.Disconnect();
-            while (!Pilot.Update(Runtime.TimeSinceLastRun.TotalSeconds))
-            {
-                yield return null;
-            }
             if (ApproachIndex < 0)
             {
                 var minkv = Approaches.MinBy((kv) => (float)(TargetLocation - kv.Value[0]).Length());
@@ -345,7 +348,22 @@ namespace IngameScript
                 yield return "";
             }
             else
+            {
+                Clamp.Unlock();
+                Clamp.AutoLock = false;
+                Vector3D detach = DockLocation + DockApproachVector * 2 * Me.CubeGrid.WorldVolume.Radius;
+                Pilot.Tasks.Clear();
+                var task = new UnaimedFlightStrategy(detach, Connector);
+                task.MaxLinearSpeed = MaxSpeed;
+                Pilot.Tasks.Add(task);
+                Connector.Disconnect();
+                Connector.Enabled = false;
+                while (!Pilot.Update(Runtime.TimeSinceLastRun.TotalSeconds))
+                {
+                    yield return null;
+                }
                 yield return "LeaveDock";
+            }
         }
 
         IEnumerable<string> LeaveDock()
@@ -354,10 +372,15 @@ namespace IngameScript
             Message("Leaving dock via route "+ChosenApproach);
             while (ApproachIndex >= 0)
             {
-                Pilot.Tasks.Add(new AimedFlightStrategy(Approaches[ChosenApproach][ApproachIndex], Pilot.Controller));
+                var task = new AimedFlightStrategy(Approaches[ChosenApproach][ApproachIndex], Pilot.Controller);
+                task.MaxLinearSpeed = MaxSpeed;
+                Pilot.Tasks.Add(task);
                 while (!Pilot.Update(Runtime.TimeSinceLastRun.TotalSeconds))
                 {
-                    yield return null;
+                    if (HasToAbort())
+                        yield return "ReturnHome";
+                    else
+                        yield return null;
                 }
                 ApproachIndex--;
             }
@@ -370,18 +393,17 @@ namespace IngameScript
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             Waypoint wp = new Waypoint(TargetLocation, Vector3D.Zero, "Target");
-            wp.TargetDistance = 40.0;
+            wp.TargetDistance = ScanningDistance;
             if ((TargetLocation - Pilot.Controller.GetPosition()).LengthSquared() < (wp.TargetDistance * wp.TargetDistance))
                 yield return "FindTarget";
             Message("Proceeding to target area.");
-            Pilot.Tasks.Add(new AimedFlightStrategy(wp, Pilot.Controller));
+            var task = new AimedFlightStrategy(wp, Pilot.Controller);
+            task.MaxLinearSpeed = MaxSpeed;
+            Pilot.Tasks.Add(task);
             while (!Pilot.Update(Runtime.TimeSinceLastRun.TotalSeconds))
             {
-                if (!Clamp.IsFunctional || TooFar())
-                {
-                    Message(Clamp.IsFunctional ? "Too far - aborting mission." : "Clamp malfunction.");
+                if (HasToAbort())
                     yield return "ReturnHome";
-                }
                 else
                     yield return null;
             }
@@ -398,7 +420,8 @@ namespace IngameScript
             {
                 sensor.DetectedEntities(Entities);
                 foreach (MyDetectedEntityInfo ent in Entities)
-                    if (ent.Type == MyDetectedEntityType.SmallGrid || ent.Type == MyDetectedEntityType.LargeGrid)
+                    if (ent.Type == MyDetectedEntityType.SmallGrid 
+                        || ent.Type == MyDetectedEntityType.LargeGrid)
                     {
                         TargetEntityID = ent.EntityId;
                         Message($"Target: {ent.Name} #{ent.EntityId}");
@@ -406,7 +429,7 @@ namespace IngameScript
                     }
             }
             var strategy = new AimedFlightStrategy(TargetLocation, Pilot.Controller);
-            strategy.MaxLinearSpeed = 10.0;
+            strategy.MaxLinearSpeed = MaxSpeed/10;
             Pilot.Tasks.Add(strategy);
             while (!Pilot.Update(Runtime.TimeSinceLastRun.TotalSeconds))
             {
@@ -421,16 +444,13 @@ namespace IngameScript
                             yield return "CaptureTarget";
                         }
                 }
-                if (!Clamp.IsFunctional || TooFar())
-                {
-                    Message(Clamp.IsFunctional ? "Too far - aborting mission." : "Clamp malfunction.");
+                if (HasToAbort())
                     yield return "ReturnHome";
-                }
                 else
                     yield return null;
             }
             //we didn't find the target - abort mission
-            Message("No targets in range - aborting mission.");
+            Message("Aborting: no targets found.");
             yield return "ReturnHome";
         }
 
@@ -469,17 +489,11 @@ namespace IngameScript
             {
                 if (!goal.UpdateEntity(Sensors))
                 {
-                    Message($"Target left sensor range.");
+                    Message($"Aborting: target left sensor range.");
                     yield return "ReturnHome";
                 }
-                else if (!Clamp.IsFunctional)
+                else if (HasToAbort())
                 {
-                    Message("Clamp malfunction.");
-                    yield return "ReturnHome";
-                }
-                else if (TooFar())
-                {
-                    Message("Too far for the dock - aborting mission.");
                     yield return "ReturnHome";
                 }
                 else
@@ -522,6 +536,7 @@ namespace IngameScript
 
         IEnumerable<string> Dock()
         {
+            Connector.Enabled = true;
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             Message("Docking.");
             Pilot.Tasks.Add(new DockingStrategy(DockLocation, DockApproachVector, Connector));
@@ -530,6 +545,26 @@ namespace IngameScript
                 yield return null;
             }
             yield return "";
+        }
+
+        bool HasToAbort()
+        {
+            if (!Clamp.IsFunctional)
+            {
+                Message("Aborting: clamp malfunction.");
+                return true;
+            }
+            if (TooFar())
+            {
+                Message("Aborting: too far from dock.");
+                return true;
+            }
+            if (Batteries.Average((b) => (b.ChargeMode == ChargeMode.Recharge) ? 0.0f : (b.CurrentStoredPower / b.MaxStoredPower)) < 0.05)
+            {
+                Message("Aborting: battery charge below 5%.");
+                return true;
+            }
+            return false;
         }
 
         bool TooFar()

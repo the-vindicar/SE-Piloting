@@ -135,7 +135,7 @@ namespace IngameScript
                     elapsedTime = elapsed;
                     //query the task.
                     bool done = CurrentTask.Update(this, ref LinearV, ref AngularV);
-                    Log($"Task {CurrentTask.ToString()}\nDone: {done}\nLinear {LinearV.ToString()}\nAngular {AngularV.ToString()}");
+                    Log?.Invoke($"Task {CurrentTask.ToString()}\nDone: {done}\nLinear {LinearV.ToString()}\nAngular {AngularV.ToString()}");
                     //whether its done or not, apply changes to thrust/rotation
                     SetRotationVelocity(AngularV, CurrentTask.Reference, CurrentTask.ReferenceForward, CurrentTask.ReferenceUp);
                     SetThrustVector(LinearV);
@@ -181,13 +181,13 @@ namespace IngameScript
             {
                 //how much our current velocity differs from desired one?
                 Vector3D deltaV = targetvel - Velocities.LinearVelocity; 
-                //if (!Vector3D.IsZero(angularvel) && !Vector3D.IsZero(deltaV))
-                //{
-                //    MatrixD rotmatrix = MatrixD.CreateFromYawPitchRoll(-angularvel.Y * elapsedTime / 2, -angularvel.X * elapsedTime / 2, -angularvel.Z * elapsedTime / 2);
-                //    deltaV = Vector3D.Rotate(deltaV, rotmatrix);
-                //}
                 if (!Vector3D.IsZero(deltaV, 1e-3)) // it does, significantly.
                 {
+                    //if (!Vector3D.IsZero(angularvel) && !Vector3D.IsZero(deltaV))
+                    //{
+                    //    MatrixD rotmatrix = MatrixD.CreateFromYawPitchRoll(-angularvel.Y * elapsedTime / 2, -angularvel.X * elapsedTime / 2, -angularvel.Z * elapsedTime / 2);
+                    //    deltaV = Vector3D.Rotate(deltaV, rotmatrix);
+                    //}
                     Vector3D grav;
                     switch (UseGravity)
                     {

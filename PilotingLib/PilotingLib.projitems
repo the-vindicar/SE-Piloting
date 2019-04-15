@@ -14,6 +14,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)AutoPilot.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)BasePilotingStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DockingStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)OribitingStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PilotingGoal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)StateMachine.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)RammingStrategy.cs" />
