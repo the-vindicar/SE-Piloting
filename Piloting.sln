@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SalvageDrone", "SalvageDron
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DroneControlPanel", "DroneControlPanel\DroneControlPanel.csproj", "{602EE81F-2DBA-4030-B2AC-7C673EF91B41}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerShipNav", "ShipPilot\WorkerShipNav.csproj", "{AB8EDD28-BD1B-46E8-9896-A1E3762D7FD8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerShipNav", "WorkerShipNav\WorkerShipNav.csproj", "{AB8EDD28-BD1B-46E8-9896-A1E3762D7FD8}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution

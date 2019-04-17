@@ -138,8 +138,6 @@ namespace IngameScript
                     {
                         linearV = -TargetVector * obstacle_speed;
                         CurrentState = State.Destination;
-                        foreach (IMyCameraBlock cam in Cameras)
-                            cam.EnableRaycast = false;
                         return true;
                     }
                     else
