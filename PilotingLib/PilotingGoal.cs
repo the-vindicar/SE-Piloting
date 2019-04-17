@@ -98,7 +98,7 @@ namespace IngameScript
                 SetNewEntityInfo(entity);
             }
 
-            private void SetNewEntityInfo(MyDetectedEntityInfo entity)
+            public void SetNewEntityInfo(MyDetectedEntityInfo entity)
             {
                 Entity = entity;
                 _ElapsedTime = 0;

@@ -48,7 +48,7 @@ namespace IngameScript
             /// </summary>
             public MyShipVelocities Velocities { get; private set; }
             /// <summary>
-            /// Ship mass jsut before last task update.
+            /// Ship mass just before last task update.
             /// </summary>
             public MyShipMass Mass { get; private set; }
 
