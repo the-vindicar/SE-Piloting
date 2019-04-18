@@ -356,6 +356,8 @@ namespace IngameScript
                 var task = new UnaimedFlightStrategy(detach, Connector);
                 task.MaxLinearSpeed = MaxSpeed;
                 Pilot.Tasks.Add(task);
+                foreach (IMyBatteryBlock battery in Batteries)
+                    battery.ChargeMode = ChargeMode.Auto;
                 Connector.Disconnect();
                 Connector.Enabled = false;
                 while (!Pilot.Update(Runtime.TimeSinceLastRun.TotalSeconds))
@@ -544,6 +546,9 @@ namespace IngameScript
             {
                 yield return null;
             }
+            if (Connector.Status == MyShipConnectorStatus.Connected)
+                foreach (IMyBatteryBlock battery in Batteries)
+                    battery.ChargeMode = ChargeMode.Recharge;
             yield return "";
         }
 

@@ -43,7 +43,7 @@ namespace IngameScript
             Pilot = new AutoPilot(GridTerminalSystem, Me);
             GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(null, (b) => 
             {
-                if (!b.IsSameConstructAs(Me))
+                if (b.CubeGrid != Me.CubeGrid)
                     return false;
                 if (b is IMyCockpit && b.IsFunctional)
                     Cockpit = b as IMyCockpit;
