@@ -39,7 +39,7 @@ namespace IngameScript
                 //linear velocity
                 linearV = direction * MaxLinearSpeed + Goal.Velocity;
                 //angular velocity
-                double diff = RotateToMatch(direction, Vector3D.Zero,
+                double diff = owner.RotateToMatch(direction, Vector3D.Zero,
                     wm.GetDirectionVector(ReferenceForward),
                     wm.GetDirectionVector(ReferenceUp),
                     ref angularV);

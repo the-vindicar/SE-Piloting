@@ -34,48 +34,102 @@ namespace IngameScript
             /// If zero, ship will fly directly towards the dock, which may result in crooked or failed docking.
             /// </summary>
             public Vector3D Approach;
+            public Vector3D Facing;
             /// <summary>
             /// Constructs docking strategy for a ship connector.
             /// </summary>
             /// <param name="goal">Location of matching connector block, world-space.</param>
-            /// <param name="approach"></param>
-            /// <param name="connector"></param>
-            public DockingStrategy(Waypoint goal, Vector3D approach, IMyShipConnector connector) 
+            /// <param name="connector">Connector block to use.</param>
+            /// <param name="approach">Direction in which connector's working end should be facing.</param>
+            /// <param name="facing">Direction in which connector's 'top' should be facing.</param>
+            public DockingStrategy(Waypoint goal, IMyShipConnector connector, Vector3D approach, Vector3D? facing = null) 
                 : base(goal, connector, Base6Directions.Direction.Forward, Base6Directions.Direction.Up)
             {
                 MaxLinearSpeed = 2.0;
                 Approach = approach;
                 Approach.Normalize();
+                Facing = facing.HasValue ? facing.Value : Vector3D.Zero;
             }
-
-            public DockingStrategy(Waypoint goal, Vector3D approach, IMyShipMergeBlock merger) 
+            /// <summary>
+            /// Constructs docking strategy for a merge block.
+            /// </summary>
+            /// <param name="goal">Location of matching merge block, world-space.</param>
+            /// <param name="merger">Merge block to use.</param>
+            /// <param name="approach">Direction in which merger's working end should be facing.</param>
+            /// <param name="facing">Direction in which merger's top should be facing.</param>
+            public DockingStrategy(Waypoint goal, IMyShipMergeBlock merger, Vector3D approach, Vector3D? facing = null) 
                 : base(goal, merger, Base6Directions.Direction.Right, Base6Directions.Direction.Up)
             {
                 MaxLinearSpeed = 2.0;
                 Approach = approach;
                 Approach.Normalize();
+                Facing = facing.HasValue ? facing.Value : Vector3D.Zero;
             }
-
-            public DockingStrategy(Waypoint goal, Vector3D approach, IMyLandingGear gear)
+            /// <summary>
+            /// Constructs docking strategy for a landing gear.
+            /// </summary>
+            /// <param name="goal">Location of the landing zone, world-space.</param>
+            /// <param name="gear">Landing gear to use.</param>
+            /// <param name="approach">Direction in which landing gear's working end should be facing.</param>
+            /// <param name="facing">Direction in which landing gear's forward vector should be facing.</param>
+            public DockingStrategy(Waypoint goal, IMyLandingGear gear, Vector3D approach, Vector3D? facing = null)
                 : base(goal, gear, Base6Directions.Direction.Down, Base6Directions.Direction.Forward)
             {
                 MaxLinearSpeed = 2.0;
                 Approach = approach;
                 Approach.Normalize();
+                Facing = facing.HasValue ? facing.Value : Vector3D.Zero;
             }
-
+            /// <summary>
+            /// Constructs docking strategy for a rotor.
+            /// </summary>
+            /// <param name="goal">Location of the landing zone, world-space.</param>
+            /// <param name="rotor">Rotor to use.</param>
+            /// <param name="approach">Direction in which rotor's working end should be facing.</param>
+            /// <param name="facing">Direction in which rotor's forward vector should be facing.</param>
+            public DockingStrategy(Waypoint goal, IMyMotorStator rotor, Vector3D approach, Vector3D? facing = null)
+                : base(goal, rotor, Base6Directions.Direction.Up, Base6Directions.Direction.Forward)
+            {
+                MaxLinearSpeed = 2.0;
+                Approach = approach;
+                Approach.Normalize();
+                Facing = facing.HasValue ? facing.Value : Vector3D.Zero;
+            }
+            /// <summary>
+            /// Calculates position and approach vector to dock on specific ship connector.
+            /// </summary>
+            /// <param name="connector">Connector to use.</param>
+            /// <param name="pos">Connector position.</param>
+            /// <param name="approach">Approach direction.</param>
             public static void CalculateApproach(IMyShipConnector connector, out Vector3D pos, out Vector3D approach)
             {
                 MatrixD wm = connector.WorldMatrix;
                 pos = wm.Translation;
-                approach = wm.GetDirectionVector(Base6Directions.Direction.Forward);
+                approach = -wm.GetDirectionVector(Base6Directions.Direction.Forward);
             }
-
-            public static void CalculateApproach(IMyShipMergeBlock connector, out Vector3D pos, out Vector3D approach)
+            /// <summary>
+            /// Calculates position and approach vector to dock on specific merge block.
+            /// </summary>
+            /// <param name="merger">Merge block to use.</param>
+            /// <param name="pos">Merge block's position.</param>
+            /// <param name="approach">Approach direction.</param>
+            public static void CalculateApproach(IMyShipMergeBlock merger, out Vector3D pos, out Vector3D approach)
             {
-                MatrixD wm = connector.WorldMatrix;
+                MatrixD wm = merger.WorldMatrix;
                 pos = wm.Translation;
-                approach = wm.GetDirectionVector(Base6Directions.Direction.Right);
+                approach = -wm.GetDirectionVector(Base6Directions.Direction.Right);
+            }
+            /// <summary>
+            /// Calculates position and approach vector to dock on specific rotor top.
+            /// </summary>
+            /// <param name="top">Rotor top to use.</param>
+            /// <param name="pos">Rotor top's position.</param>
+            /// <param name="approach">Approach direction.</param>
+            public static void CalculateApproach(IMyMotorRotor top, out Vector3D pos, out Vector3D approach)
+            {
+                MatrixD wm = top.WorldMatrix;
+                pos = wm.Translation;
+                approach = -wm.GetDirectionVector(Base6Directions.Direction.Down);
             }
 
             public override bool Update(AutoPilot owner, ref Vector3D linearV, ref Vector3D angularV)
@@ -92,12 +146,13 @@ namespace IngameScript
 
                 if (!Vector3D.IsZero(Approach))
                 {
-                    diff = RotateToMatch(-Approach, Vector3D.Zero,
+                    Vector3D minusApproach = -Approach;
+                    diff = owner.RotateToMatch(Approach, Facing,
                         wm.GetDirectionVector(ReferenceForward),
                         wm.GetDirectionVector(ReferenceUp),
                         ref angularV);
-                    PlaneD alignment = new PlaneD(wm.Translation, Approach);
-                    Vector3D alignedPos = alignment.Intersection(ref currentGoalPos, ref Approach);
+                    PlaneD alignment = new PlaneD(wm.Translation, minusApproach);
+                    Vector3D alignedPos = alignment.Intersection(ref currentGoalPos, ref minusApproach);
                     Vector3D correction = alignedPos - wm.Translation;
                     if (!Vector3D.IsZero(correction, PositionEpsilon)) //are we on approach vector?
                     {   //no - let's move there
@@ -107,7 +162,7 @@ namespace IngameScript
                     //otherwise, we can keep our current direction
                 }
                 else
-                    diff = RotateToMatch(direction, Vector3D.Zero,
+                    diff = owner.RotateToMatch(direction, Facing,
                         wm.GetDirectionVector(ReferenceForward),
                         wm.GetDirectionVector(ReferenceUp),
                         ref angularV);
@@ -137,6 +192,8 @@ namespace IngameScript
                     return TryLockIn(Reference as IMyLandingGear);
                 else if (Reference is IMyShipMergeBlock)
                     return TryLockIn(Reference as IMyShipMergeBlock);
+                else if (Reference is IMyMotorStator)
+                    return TryLockIn(Reference as IMyMotorStator);
                 else
                     throw new Exception("Somehow, reference block is not a lockable one!");
             }
@@ -149,6 +206,8 @@ namespace IngameScript
                     Unlock(Reference as IMyLandingGear);
                 else if (Reference is IMyShipMergeBlock)
                     Unlock(Reference as IMyShipMergeBlock);
+                else if (Reference is IMyMotorStator)
+                    Unlock(Reference as IMyMotorStator);
             }
 
             void Unlock(IMyShipConnector clamp)
@@ -164,6 +223,11 @@ namespace IngameScript
             void Unlock(IMyLandingGear clamp)
             {
                 clamp.Unlock();
+            }
+
+            void Unlock(IMyMotorStator clamp)
+            {
+                clamp.Detach();
             }
 
             bool TryLockIn(IMyShipConnector clamp)
@@ -192,6 +256,13 @@ namespace IngameScript
                 return clamp.IsConnected;
             }
 
+            bool TryLockIn(IMyMotorStator clamp)
+            {
+                clamp.Enabled = true;
+                clamp.RotorLock = true;
+                clamp.Attach();
+                return clamp.IsAttached;
+            }
         }
     }
 }

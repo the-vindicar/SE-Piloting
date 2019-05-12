@@ -70,7 +70,7 @@ namespace IngameScript
                 if (distance > PositionEpsilon) //Are we too far from our desired position?
                 {
                     //rotate the ship to face it
-                    double diff = RotateToMatch(facingdirection, Vector3D.Zero,
+                    double diff = owner.RotateToMatch(facingdirection, Vector3D.Zero,
                         wm.GetDirectionVector(ReferenceForward),
                         wm.GetDirectionVector(ReferenceUp),
                         ref angularV);

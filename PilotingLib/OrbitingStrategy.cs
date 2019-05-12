@@ -23,7 +23,7 @@ namespace IngameScript
         /// <summary>
         /// Makes the ship orbit the specified location.
         /// </summary>
-        public class OribitingStrategy : BasePilotingStrategy
+        public class OrbitingStrategy : BasePilotingStrategy
         {
             public Vector3D Normal;
             /// <summary>
@@ -34,7 +34,7 @@ namespace IngameScript
             /// <param name="reference">Reference block to use, or null to use ship controller.</param>
             /// <param name="forward">Direction on the reference block that is considered "forward".</param>
             /// <param name="up">Direction on the reference block that is considered "up".</param>
-            public OribitingStrategy(Waypoint goal, Vector3D normal, IMyTerminalBlock reference, Base6Directions.Direction forward = Base6Directions.Direction.Forward, Base6Directions.Direction up = Base6Directions.Direction.Up) : base(goal, reference, forward, up)
+            public OrbitingStrategy(Waypoint goal, Vector3D normal, IMyTerminalBlock reference, Base6Directions.Direction forward = Base6Directions.Direction.Forward, Base6Directions.Direction up = Base6Directions.Direction.Up) : base(goal, reference, forward, up)
             {
                 if (Goal.TargetDistance <= 0)
                     throw new ArgumentException("Goal.TargetDistance specifies orbit radius, and must be above 0.");
@@ -61,7 +61,7 @@ namespace IngameScript
                 Vector3D vel = Normal.Cross(radius);
                 vel.Normalize();
                 linearV = Goal.Velocity + vel * MaxLinearSpeed + radius * (R - Goal.TargetDistance);
-                double diff = RotateToMatch(radius, Normal,
+                double diff = owner.RotateToMatch(radius, Normal,
                     wm.GetDirectionVector(ReferenceForward),
                     wm.GetDirectionVector(ReferenceUp),
                     ref angularV);

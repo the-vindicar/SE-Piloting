@@ -126,14 +126,16 @@ namespace IngameScript
         {
             if (Pilot.Tasks.Count > 0)
                 QuickHalt();
-            Vector3D dock, approach;
-            if (!Front.EnableRaycast || !GetApproachFromScan(Front, out dock, out approach) || !Connector.IsFunctional)
-            {
+            Vector3D dock, approach, orientation;
+            if (!Front.EnableRaycast)
                 Front.EnableRaycast = true;
+            if (!Connector.IsFunctional || !GetApproachFromScan(Front, out dock, out approach, out orientation))
+            {
+                Echo("Can't dock.");
             }
             else
             {
-                var task = new DockingStrategy(dock, approach, Connector);
+                var task = new DockingStrategy(dock, Connector, approach, orientation);
                 Pilot.Tasks.Add(task);
             }
         }
@@ -165,7 +167,7 @@ namespace IngameScript
             UpdateScanInfo();
         }
 
-        private bool GetApproachFromScan(IMyCameraBlock camera, out Vector3D position, out Vector3D approach)
+        private bool GetApproachFromScan(IMyCameraBlock camera, out Vector3D position, out Vector3D approach, out Vector3D orientation)
         {
             Vector3D scan = 100 * camera.WorldMatrix.Forward + camera.WorldMatrix.Translation;
             MyDetectedEntityInfo info = camera.CanScan(scan) ? camera.Raycast(scan) : new MyDetectedEntityInfo();
@@ -173,11 +175,14 @@ namespace IngameScript
             {
                 position = Vector3D.Zero;
                 approach = Vector3D.Zero;
+                orientation = Vector3D.Zero;
                 return false;
             }
             Base6Directions.Direction dir = info.Orientation.GetClosestDirection(camera.GetPosition() - info.HitPosition.Value);
             approach = info.Orientation.GetDirectionVector(dir);
             position = info.HitPosition.Value;
+            Base6Directions.Direction odir = info.Orientation.GetClosestDirection(Connector.WorldMatrix.Up);
+            orientation = info.Orientation.GetDirectionVector(odir);
             return true;
         }
 

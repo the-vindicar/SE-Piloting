@@ -67,7 +67,12 @@ namespace IngameScript
             /// <param name="thrusters">Thrusters to use.</param>
             /// <param name="gyros">Gyros to use.</param>
             public AutoPilot(IMyShipController controller, List<IMyThrust> thrusters, List<IMyGyro> gyros)
-            { Thrusters = thrusters; Gyros = gyros; Controller = controller; ThrustValues = new double[Thrusters.Count]; }
+            {
+                Thrusters = thrusters;
+                Gyros = gyros;
+                Controller = controller;
+                ThrustValues = new double[Thrusters.Count];
+            }
             /// <summary>
             /// Create autopilot and let it find the required blocks.
             /// </summary>
@@ -125,19 +130,19 @@ namespace IngameScript
                     return true; //report that we are done
                 else //there is something to do
                 {
+                    elapsedTime = elapsed;
                     Velocities = Controller.GetShipVelocities();
                     Mass = Controller.CalculateShipMass();
                     // current velocities
                     Vector3D LinearV = Velocities.LinearVelocity;
-                    Vector3D AngularV = Velocities.AngularVelocity;
+                    Vector3D TargetAngularV = Velocities.AngularVelocity;
                     //task can always set respective velocities to 0 to avoid linear and/or angular motion
-                    Controller.DampenersOverride = false;
-                    elapsedTime = elapsed;
+                    Controller.DampenersOverride = CurrentTask.DampenersOverride;
                     //query the task.
-                    bool done = CurrentTask.Update(this, ref LinearV, ref AngularV);
-                    Log?.Invoke($"Task {CurrentTask.ToString()}\nDone: {done}\nLinear {LinearV.ToString()}\nAngular {AngularV.ToString()}");
+                    bool done = CurrentTask.Update(this, ref LinearV, ref TargetAngularV);
+                    Log?.Invoke($"Task {CurrentTask.ToString()}\nDone: {done}\nLinear {LinearV.ToString()}\nAngular {TargetAngularV.ToString()}");
                     //whether its done or not, apply changes to thrust/rotation
-                    SetRotationVelocity(AngularV, CurrentTask.Reference, CurrentTask.ReferenceForward, CurrentTask.ReferenceUp);
+                    SetRotationVelocity(TargetAngularV, CurrentTask.Reference, CurrentTask.ReferenceForward, CurrentTask.ReferenceUp);
                     SetThrustVector(LinearV);
                     if (done)
                     {   //current task has been completed
@@ -276,6 +281,44 @@ namespace IngameScript
                         g.GyroOverride = true;
                     }
                 }
+            }
+
+            /// <summary>
+            /// Calculates angular velocity required to point the ship in desired direction.
+            /// All vectors must be unit-vectors in world-space cordinates.
+            /// </summary>
+            /// <param name="desired_forward">Desired direction for the ship to be pointing in, world-space.</param>
+            /// <param name="desired_up">Desired direction for the top of the ship to be pointing in, world-space. Zero vector if roll doesn't matter.</param>
+            /// <param name="forward">Current forward direction of the ship, world-space.</param>
+            /// <param name="up">Current up direction for the ship.</param>
+            /// <param name="vel">Suggested angular velocity.</param>
+            /// <returns>Estimate of how wrong our orientation is. 0 means perfect match, 2 means opposite direction.</returns>
+            public double RotateToMatch(Vector3D desired_forward, Vector3D desired_up, Vector3D forward, Vector3D up, ref Vector3D vel)
+            {
+                double diff = forward.Dot(desired_forward);
+                double rolldiff;
+                Vector3D left = up.Cross(forward);
+                Vector3D movevector = forward - desired_forward;
+                if (Vector3D.IsZero(desired_up))
+                {
+                    rolldiff = 0;
+                    vel.Z = 0;
+                }
+                else
+                {
+                    rolldiff = desired_up.Dot(up);
+                    Vector3D rollvector = up - desired_up;
+                    vel.Z = left.Dot(rollvector);
+                    if (rolldiff < 0)
+                        vel.Z += Math.Sign(vel.Z);
+                    rolldiff = 1 - rolldiff;
+                }
+                vel.X = up.Dot(movevector);
+                vel.Y = left.Dot(movevector);
+                if (diff < 0)
+                    vel.Y += Math.Sign(vel.Y);
+                diff = 1 - diff;
+                return Math.Max(diff, rolldiff);
             }
         }
     }

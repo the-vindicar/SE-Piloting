@@ -48,7 +48,7 @@ namespace IngameScript
                 Vector3D direction = pos - wm.Translation;
                 double distance = direction.Normalize();
                 linearV.X = linearV.Y = linearV.Z = 0;
-                double diff = RotateToMatch(direction, Vector3D.Zero,
+                double diff = owner.RotateToMatch(direction, Vector3D.Zero,
                     wm.GetDirectionVector(ReferenceForward),
                     wm.GetDirectionVector(ReferenceUp),
                     ref angularV);
