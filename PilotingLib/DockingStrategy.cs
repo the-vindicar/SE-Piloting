@@ -43,13 +43,8 @@ namespace IngameScript
             /// <param name="approach">Direction in which connector's working end should be facing.</param>
             /// <param name="facing">Direction in which connector's 'top' should be facing.</param>
             public DockingStrategy(Waypoint goal, IMyShipConnector connector, Vector3D approach, Vector3D? facing = null) 
-                : base(goal, connector, Base6Directions.Direction.Forward, Base6Directions.Direction.Up)
-            {
-                MaxLinearSpeed = 2.0;
-                Approach = approach;
-                Approach.Normalize();
-                Facing = facing.HasValue ? facing.Value : Vector3D.Zero;
-            }
+                : this(goal, connector, Base6Directions.Direction.Forward, Base6Directions.Direction.Up, approach, facing)
+            { }
             /// <summary>
             /// Constructs docking strategy for a merge block.
             /// </summary>
@@ -58,13 +53,8 @@ namespace IngameScript
             /// <param name="approach">Direction in which merger's working end should be facing.</param>
             /// <param name="facing">Direction in which merger's top should be facing.</param>
             public DockingStrategy(Waypoint goal, IMyShipMergeBlock merger, Vector3D approach, Vector3D? facing = null) 
-                : base(goal, merger, Base6Directions.Direction.Right, Base6Directions.Direction.Up)
-            {
-                MaxLinearSpeed = 2.0;
-                Approach = approach;
-                Approach.Normalize();
-                Facing = facing.HasValue ? facing.Value : Vector3D.Zero;
-            }
+                : this(goal, merger, Base6Directions.Direction.Right, Base6Directions.Direction.Up, approach, facing)
+            { }
             /// <summary>
             /// Constructs docking strategy for a landing gear.
             /// </summary>
@@ -73,27 +63,70 @@ namespace IngameScript
             /// <param name="approach">Direction in which landing gear's working end should be facing.</param>
             /// <param name="facing">Direction in which landing gear's forward vector should be facing.</param>
             public DockingStrategy(Waypoint goal, IMyLandingGear gear, Vector3D approach, Vector3D? facing = null)
-                : base(goal, gear, Base6Directions.Direction.Down, Base6Directions.Direction.Forward)
-            {
-                MaxLinearSpeed = 2.0;
-                Approach = approach;
-                Approach.Normalize();
-                Facing = facing.HasValue ? facing.Value : Vector3D.Zero;
-            }
+                : this(goal, gear, Base6Directions.Direction.Down, Base6Directions.Direction.Forward, approach, facing)
+            { }
             /// <summary>
-            /// Constructs docking strategy for a rotor.
+            /// Constructs docking strategy for a rotor stator (on ship's side).
             /// </summary>
             /// <param name="goal">Location of the landing zone, world-space.</param>
             /// <param name="rotor">Rotor to use.</param>
             /// <param name="approach">Direction in which rotor's working end should be facing.</param>
             /// <param name="facing">Direction in which rotor's forward vector should be facing.</param>
             public DockingStrategy(Waypoint goal, IMyMotorStator rotor, Vector3D approach, Vector3D? facing = null)
-                : base(goal, rotor, Base6Directions.Direction.Up, Base6Directions.Direction.Forward)
+                : this(goal, rotor, Base6Directions.Direction.Up, Base6Directions.Direction.Forward, approach, facing)
+            { }
+            /// <summary>
+            /// Constructs docking strategy for a rotor top (on ship's side).
+            /// Remember, top attachment needs to be done on accepting side!
+            /// </summary>
+            /// <param name="goal">Location of the landing zone, world-space.</param>
+            /// <param name="rotor">Rotor to use.</param>
+            /// <param name="approach">Direction in which rotor's working end should be facing.</param>
+            /// <param name="facing">Direction in which rotor's forward vector should be facing.</param>
+            public DockingStrategy(Waypoint goal, IMyMotorRotor rotor, Vector3D approach, Vector3D? facing = null)
+                : this(goal, rotor, Base6Directions.Direction.Down, Base6Directions.Direction.Forward, approach, facing)
+            { }
+
+            private DockingStrategy(
+                Waypoint goal, 
+                IMyCubeBlock clamp, 
+                Base6Directions.Direction forward, 
+                Base6Directions.Direction up, 
+                Vector3D approach, Vector3D? facing = null)
+                : base(goal, clamp, forward, up)
             {
                 MaxLinearSpeed = 2.0;
                 Approach = approach;
                 Approach.Normalize();
                 Facing = facing.HasValue ? facing.Value : Vector3D.Zero;
+                if (Reference is IMyShipConnector)
+                {
+                    TryLockIn = TryLockInConnector;
+                    Unlock = UnlockConnector;
+                }
+                else if (Reference is IMyLandingGear)
+                {
+                    TryLockIn = TryLockInLGear;
+                    Unlock = UnlockLGear;
+                }
+                else if (Reference is IMyShipMergeBlock)
+                {
+                    TryLockIn = TryLockInMerge;
+                    Unlock = UnlockMerge;
+                }
+                else if (Reference is IMyMotorStator)
+                {
+                    TryLockIn = TryLockInStator;
+                    Unlock = UnlockStator;
+                }
+                else if (Reference is IMyMotorRotor)
+                {
+                    TryLockIn = TryLockInRotor;
+                    Unlock = UnlockRotor;
+                }
+                else
+                    throw new Exception("Somehow, reference block is not a lockable one!");
+
             }
             /// <summary>
             /// Calculates position and approach vector to dock on specific ship connector.
@@ -135,7 +168,7 @@ namespace IngameScript
             public override bool Update(AutoPilot owner, ref Vector3D linearV, ref Vector3D angularV)
             {
                 if (Goal == null) return false;
-                IMyTerminalBlock reference = Reference ?? owner.Controller;
+                IMyCubeBlock reference = Reference ?? owner.Controller;
                 MatrixD wm = reference.WorldMatrix;
                 Goal.UpdateTime(owner.elapsedTime);
                 Vector3D currentGoalPos = Goal.CurrentPosition;
@@ -184,54 +217,43 @@ namespace IngameScript
                 return TryLockIn() || (target_distance < PositionEpsilon);
             }
 
-            public bool TryLockIn()
-            {
-                if (Reference is IMyShipConnector)
-                    return TryLockIn(Reference as IMyShipConnector);
-                else if (Reference is IMyLandingGear)
-                    return TryLockIn(Reference as IMyLandingGear);
-                else if (Reference is IMyShipMergeBlock)
-                    return TryLockIn(Reference as IMyShipMergeBlock);
-                else if (Reference is IMyMotorStator)
-                    return TryLockIn(Reference as IMyMotorStator);
-                else
-                    throw new Exception("Somehow, reference block is not a lockable one!");
-            }
+            public Func<bool> TryLockIn { get; private set; }
+            public Action Unlock { get; private set; }
 
-            public void Unlock()
+            void UnlockConnector()
             {
-                if (Reference is IMyShipConnector)
-                    Unlock(Reference as IMyShipConnector);
-                else if (Reference is IMyLandingGear)
-                    Unlock(Reference as IMyLandingGear);
-                else if (Reference is IMyShipMergeBlock)
-                    Unlock(Reference as IMyShipMergeBlock);
-                else if (Reference is IMyMotorStator)
-                    Unlock(Reference as IMyMotorStator);
-            }
-
-            void Unlock(IMyShipConnector clamp)
-            {
+                IMyShipConnector clamp = Reference as IMyShipConnector;
                 clamp.Disconnect();
             }
 
-            void Unlock(IMyShipMergeBlock clamp)
+            void UnlockMerge()
             {
+                IMyShipMergeBlock clamp = Reference as IMyShipMergeBlock;
                 clamp.Enabled = false;
             }
 
-            void Unlock(IMyLandingGear clamp)
+            void UnlockLGear()
             {
+                IMyLandingGear clamp = Reference as IMyLandingGear;
                 clamp.Unlock();
             }
 
-            void Unlock(IMyMotorStator clamp)
+            void UnlockStator()
             {
+                IMyMotorStator clamp = Reference as IMyMotorStator;
                 clamp.Detach();
             }
 
-            bool TryLockIn(IMyShipConnector clamp)
+            void UnlockRotor()
             {
+                IMyMotorRotor clamp = Reference as IMyMotorRotor;
+                if (clamp.IsAttached)
+                    clamp.Base.Detach();
+            }
+
+            bool TryLockInConnector()
+            {
+                IMyShipConnector clamp = Reference as IMyShipConnector;
                 clamp.Enabled = true;
                 if (clamp.Status == MyShipConnectorStatus.Connectable)
                 {
@@ -242,25 +264,34 @@ namespace IngameScript
                     return false;
             }
 
-            bool TryLockIn(IMyLandingGear clamp)
+            bool TryLockInLGear()
             {
+                IMyLandingGear clamp = Reference as IMyLandingGear;
                 clamp.Enabled = true;
                 if (clamp.LockMode == LandingGearMode.ReadyToLock)
                     clamp.Lock();
                 return clamp.LockMode == LandingGearMode.Locked;
             }
 
-            bool TryLockIn(IMyShipMergeBlock clamp)
+            bool TryLockInMerge()
             {
+                IMyShipMergeBlock clamp = Reference as IMyShipMergeBlock;
                 clamp.Enabled = true;
                 return clamp.IsConnected;
             }
 
-            bool TryLockIn(IMyMotorStator clamp)
+            bool TryLockInStator()
             {
+                IMyMotorStator clamp = Reference as IMyMotorStator;
                 clamp.Enabled = true;
                 clamp.RotorLock = true;
                 clamp.Attach();
+                return clamp.IsAttached;
+            }
+
+            bool TryLockInRotor()
+            {
+                IMyMotorRotor clamp = Reference as IMyMotorRotor;
                 return clamp.IsAttached;
             }
         }

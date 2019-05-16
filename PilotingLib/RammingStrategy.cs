@@ -25,13 +25,13 @@ namespace IngameScript
         /// </summary>
         public class RammingStrategy : BasePilotingStrategy
         {
-            public RammingStrategy(Waypoint goal, IMyTerminalBlock reference,
+            public RammingStrategy(Waypoint goal, IMyCubeBlock reference,
                 Base6Directions.Direction forward = Base6Directions.Direction.Forward,
                 Base6Directions.Direction up = Base6Directions.Direction.Up) : base(goal, reference, forward, up) { }
             public override bool Update(AutoPilot owner, ref Vector3D linearV, ref Vector3D angularV)
             {
                 if (Goal == null) return false;
-                IMyTerminalBlock reference = Reference ?? owner.Controller;
+                IMyCubeBlock reference = Reference ?? owner.Controller;
                 MatrixD wm = reference.WorldMatrix;
                 Goal.UpdateTime(owner.elapsedTime);
                 Vector3D direction = Goal.CurrentPosition - wm.Translation;

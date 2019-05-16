@@ -21,7 +21,7 @@ namespace IngameScript
 {
     partial class Program
     {
-        public class CruiseStrategy : AimedFlightStrategy
+        public class CruiseStrategy : BasePilotingStrategy
         {
             public double Clearance = 0.0;
 
@@ -30,10 +30,9 @@ namespace IngameScript
             List<MyDetectedEntityInfo> _entities = new List<MyDetectedEntityInfo>();
             List<MyDetectedEntityInfo> Collisions = new List<MyDetectedEntityInfo>();
 
-
             public CruiseStrategy(
-                Waypoint goal, 
-                IMyTerminalBlock reference, 
+                Waypoint goal,
+                IMyCubeBlock reference, 
                 List<IMyCameraBlock> cameras = null,
                 List<IMySensorBlock> sensors = null,
                 Base6Directions.Direction forward = Base6Directions.Direction.Forward, 

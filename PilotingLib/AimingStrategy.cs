@@ -29,7 +29,7 @@ namespace IngameScript
             /// </summary>
             /// <param name="goal">Goal to pursue.</param>
             /// <param name="reference">Reference block to use, or null to use ship controller.</param>
-            public AimingStrategy(Waypoint goal, IMyTerminalBlock reference,
+            public AimingStrategy(Waypoint goal, IMyCubeBlock reference,
                 Base6Directions.Direction forward = Base6Directions.Direction.Forward,
                 Base6Directions.Direction up = Base6Directions.Direction.Up) : base (goal, reference, forward, up) { }
             /// <summary>
@@ -42,7 +42,7 @@ namespace IngameScript
             public override bool Update(AutoPilot owner, ref Vector3D linearV, ref Vector3D angularV)
             {
                 if (Goal == null) return false;
-                IMyTerminalBlock reference = Reference ?? owner.Controller;
+                IMyCubeBlock reference = Reference ?? owner.Controller;
                 Vector3D pos = Goal.CurrentPosition;
                 MatrixD wm = reference.WorldMatrix;
                 Vector3D direction = pos - wm.Translation;

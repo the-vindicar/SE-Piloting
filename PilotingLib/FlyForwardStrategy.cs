@@ -50,7 +50,7 @@ namespace IngameScript
             /// <param name="forward">The direction to be considered forward, relative to reference block.</param>
             public FlyForwardStrategy(double distance, 
                 List<IMyCameraBlock> cameras,
-                IMyTerminalBlock reference = null,
+                IMyCubeBlock reference = null,
                 Base6Directions.Direction forward = Base6Directions.Direction.Forward)
                 : base(null, reference, forward)
             {
@@ -82,7 +82,7 @@ namespace IngameScript
                 if (CurrentState == State.Destination) return true;
                 angularV = Vector3D.Zero;
 
-                IMyTerminalBlock reference = Reference ?? owner.Controller;
+                IMyCubeBlock reference = Reference ?? owner.Controller;
                 MatrixD wm = reference.WorldMatrix;
                 TargetVector = wm.GetDirectionVector(ReferenceForward);
                 BoundingSphereD bs = reference.CubeGrid.WorldVolume;

@@ -28,7 +28,7 @@ namespace IngameScript
             /// Reference block. Its position & orientation are considered to be ship's position & orientation.
             /// If null, then ship controller block is used for that purpose.
             /// </summary>
-            public IMyTerminalBlock Reference;
+            public IMyCubeBlock Reference;
             public Base6Directions.Direction ReferenceForward;
             public Base6Directions.Direction ReferenceUp;
             /// <summary>
@@ -51,7 +51,7 @@ namespace IngameScript
             /// </summary>
             /// <param name="goal">Goal to pursue.</param>
             /// <param name="reference">Reference block to use.</param>
-            public BasePilotingStrategy(Waypoint goal, IMyTerminalBlock reference,
+            public BasePilotingStrategy(Waypoint goal, IMyCubeBlock reference,
                 Base6Directions.Direction forward = Base6Directions.Direction.Forward,
                 Base6Directions.Direction up = Base6Directions.Direction.Up)
             {

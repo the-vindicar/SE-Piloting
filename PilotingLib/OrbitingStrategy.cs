@@ -34,7 +34,7 @@ namespace IngameScript
             /// <param name="reference">Reference block to use, or null to use ship controller.</param>
             /// <param name="forward">Direction on the reference block that is considered "forward".</param>
             /// <param name="up">Direction on the reference block that is considered "up".</param>
-            public OrbitingStrategy(Waypoint goal, Vector3D normal, IMyTerminalBlock reference, Base6Directions.Direction forward = Base6Directions.Direction.Forward, Base6Directions.Direction up = Base6Directions.Direction.Up) : base(goal, reference, forward, up)
+            public OrbitingStrategy(Waypoint goal, Vector3D normal, IMyCubeBlock reference, Base6Directions.Direction forward = Base6Directions.Direction.Forward, Base6Directions.Direction up = Base6Directions.Direction.Up) : base(goal, reference, forward, up)
             {
                 if (Goal.TargetDistance <= 0)
                     throw new ArgumentException("Goal.TargetDistance specifies orbit radius, and must be above 0.");
@@ -54,7 +54,7 @@ namespace IngameScript
             public override bool Update(AutoPilot owner, ref Vector3D linearV, ref Vector3D angularV)
             {
                 if (Goal == null) return false;
-                IMyTerminalBlock reference = Reference ?? owner.Controller;
+                IMyCubeBlock reference = Reference ?? owner.Controller;
                 MatrixD wm = reference.WorldMatrix;
                 Vector3D radius = Goal.CurrentPosition - wm.Translation;
                 double R = radius.Normalize();
