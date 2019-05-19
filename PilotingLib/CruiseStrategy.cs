@@ -28,7 +28,7 @@ namespace IngameScript
             List<IMyCameraBlock> Cameras = null;
             List<IMySensorBlock> Sensors = null;
             List<MyDetectedEntityInfo> _entities = new List<MyDetectedEntityInfo>();
-            List<MyDetectedEntityInfo> Obstacles = new List<MyDetectedEntityInfo>();
+            List<MyDetectedEntityInfo> Collisions = new List<MyDetectedEntityInfo>();
 
             public CruiseStrategy(
                 Waypoint goal,
