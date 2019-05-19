@@ -269,6 +269,7 @@ namespace IngameScript
                         Vector3D new_up = wm.GetDirectionVector(up);
                         wm.Forward = new_forward;
                         wm.Up = new_up;
+                        wm.Right = new_forward.Cross(new_up);
                     }
                     Vector3D worldRotation = Vector3D.TransformNormal(gridRotation, wm);
                     foreach (IMyGyro g in Gyros)
