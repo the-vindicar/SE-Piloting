@@ -242,7 +242,7 @@ namespace IngameScript
             /// <param name="forward">Direction of the reference block to be considered forward.</param>
             /// <param name="up">Direction of the reference block to be considered up.</param>
             void SetRotationVelocity(Vector3D gridRotation, 
-                IMyTerminalBlock reference = null, 
+                IMyCubeBlock reference = null, 
                 Base6Directions.Direction forward = Base6Directions.Direction.Forward,
                 Base6Directions.Direction up = Base6Directions.Direction.Up)
             {
@@ -261,7 +261,7 @@ namespace IngameScript
                     //a bit of a mess with X axis sign... no idea why, but it's necessary to flip it.
                     Vector3D fixedGridRotation = new Vector3D(-gridRotation.X, gridRotation.Y, gridRotation.Z);
                     //Translate rotation vector from grid-space to world-space.
-                    IMyTerminalBlock refblock = reference ?? Controller;
+                    IMyCubeBlock refblock = reference ?? Controller;
                     MatrixD wm = refblock.WorldMatrix;
                     if (forward != Base6Directions.Direction.Forward || up != Base6Directions.Direction.Up)
                     {   //We change the trasformation matrix, so now forward/up directions are the ones we chose.

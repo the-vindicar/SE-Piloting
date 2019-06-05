@@ -25,7 +25,7 @@ namespace IngameScript
         IMyRadioAntenna Antenna = null;
         IMyShipConnector Connector = null;
         IMyLandingGear Clamp = null;
-        IMyCameraBlock Camera = null;
+        List<IMyCameraBlock> Cameras = new List<IMyCameraBlock>();
         List<IMyBatteryBlock> Batteries = new List<IMyBatteryBlock>();
         List<IMySensorBlock> Sensors = new List<IMySensorBlock>();
         List<MyDetectedEntityInfo> Entities = new List<MyDetectedEntityInfo>();
@@ -35,6 +35,7 @@ namespace IngameScript
         AutoPilot Pilot;
         MyCommandLine Cmd = new MyCommandLine();
         MyIni ini = new MyIni();
+        double Timeout = 0;
         #endregion
 
         #region Serialized variables
@@ -42,7 +43,9 @@ namespace IngameScript
         double AbortDistance;
         double ScanningDistance;
         double MaxSpeed;
+        double ActionTimeout;
         string TransmitTag;
+        bool DisableAntenna;
         Vector3D DockLocation = Vector3D.Zero;
         Vector3D DockApproachVector = Vector3D.Zero;
         Vector3D GrinderLocation = Vector3D.Zero;
@@ -52,7 +55,7 @@ namespace IngameScript
         Dictionary<string, List<Vector3D>> Approaches = new Dictionary<string, List<Vector3D>>();
         //[Runtime] - Storage Only
         StateMachine State_Machine;
-        Vector3D TargetLocation;
+        Waypoint TargetLocation;
         string ChosenApproach;
         int ApproachIndex = -1;
         long TargetEntityID = 0;
@@ -86,6 +89,8 @@ namespace IngameScript
                         Antenna = b as IMyRadioAntenna;
                     else if (b is IMyLandingGear)
                         Clamp = b as IMyLandingGear;
+                    else if (b is IMyCameraBlock)
+                        Cameras.Add(b as IMyCameraBlock);
                 }
                 return false;
             });
@@ -95,12 +100,8 @@ namespace IngameScript
             if (Connector == null) throw new Exception("Connector not found.");
             if (Clamp == null) throw new Exception("Clamp not found.");
             if (Sensors.Count == 0) throw new Exception("Sensors not found.");
-            GridTerminalSystem.GetBlocksOfType<IMyCameraBlock>(null, (c) =>
-            {
-                if (c.WorldMatrix.Forward.Dot(Clamp.WorldMatrix.Down) > 0.9)
-                    Camera = c;
-                return false;
-            });
+            foreach (var cam in Cameras)
+                cam.EnableRaycast = true;
             Pilot = new AutoPilot(Controller, Thrusters, Gyros);
             try
             {
@@ -147,6 +148,7 @@ namespace IngameScript
                 {
                     case "id": Message($"Drone computer IGC ID: 0x{IGC.Me:X}"); break;
                     case "start": Start(Cmd.Argument(1)); break;
+                    case "capture": CaptureScanned(); break;
                     case "grind": Grind(); break;
                     case "halt": Halt("Warning: drone halted."); break;
                     case "reload": Reload(); break;
@@ -178,17 +180,39 @@ namespace IngameScript
                 Message("Drone has already left the base.");
                 return;
             }
-            string _;
-            if (!Waypoint.TryParseGPS(arg, out TargetLocation, out _) &&
-                !Vector3D.TryParse(arg, out TargetLocation))
+            string name;
+            Vector3D loc;
+            if (!Waypoint.TryParseGPS(arg, out loc, out name) &&
+                !Vector3D.TryParse(arg, out loc))
             {
                 Message("Location must be a GPS string or a Vector3D string representation.");
                 return;
             }
+            TargetLocation = new Waypoint(loc, Vector3D.Zero, name);
             ChosenApproach = "";
             ApproachIndex = -1;
             State_Machine.CurrentState = "Launch";
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
+        }
+
+        void CaptureScanned()
+        {
+            if (State_Machine.CurrentState != "")
+            {
+                Message("Drone has already left the base.");
+                return;
+            }
+            foreach (var cam in Cameras)
+                if (cam.IsWorking && cam.WorldMatrix.Forward.Dot(Clamp.WorldMatrix.Down) > 0.9)
+                {
+                    MyDetectedEntityInfo info = cam.Raycast(cam.AvailableScanRange);
+                    if (!info.IsEmpty() && (info.Type == MyDetectedEntityType.SmallGrid || info.Type == MyDetectedEntityType.LargeGrid))
+                    {
+                        TargetLocation = new Waypoint(info);
+                        PreFlightPreparations();
+                        State_Machine.CurrentState = "ReachTargetArea";
+                    }
+                }
         }
 
         void Grind()
@@ -233,11 +257,15 @@ namespace IngameScript
         {
             switch (State_Machine.CurrentState)
             {
-                case "ReturnHome":
                 case "Dock":
                     Message("Cannot recall the drone at this stage."); break;
                 default:
-                    State_Machine.CurrentState = "ReturnHome"; break;
+                    {
+                        if (Clamp.WorldMatrix != MatrixD.Identity)
+                            Clamp.Unlock();
+                        State_Machine.CurrentState = "ReturnHome";
+                    };
+                    break;
             }
         }
         #endregion
@@ -251,7 +279,9 @@ namespace IngameScript
             AbortDistance = ini.Get("General", "AbortDistance").ToDouble(3000.0);
             ScanningDistance = ini.Get("General", "ScanningDistance").ToDouble(40.0);
             MaxSpeed = ini.Get("General", "MaxSpeed").ToDouble(100.0);
+            ActionTimeout = ini.Get("General", "ActionTimeout").ToDouble(120.0);
             TransmitTag = ini.Get("General", "TransmitTag").ToString("");
+            DisableAntenna = ini.Get("General", "DisableAntenna").ToBoolean(false);
             if (!string.IsNullOrEmpty(TransmitTag))
                 IGC.UnicastListener.SetMessageCallback("process_message");
             if (ini.ContainsKey("General", "Dock") && ini.ContainsKey("General", "DockApproach"))
@@ -305,6 +335,7 @@ namespace IngameScript
             }
             if (Approaches.Count == 0)
                 throw new Exception("No approaches configured!");
+            Timeout = ActionTimeout;
             #endregion
             #region Runtime items - restoring a saved state
             if (runtime)
@@ -321,8 +352,11 @@ namespace IngameScript
                 }
                 else
                 {
-                    if (!Vector3D.TryParse(ini.Get("Runtime", "TargetLocation").ToString(""), out TargetLocation))
+                    Vector3D loc;
+                    if (!Vector3D.TryParse(ini.Get("Runtime", "TargetLocation").ToString(""), out loc))
                         throw new Exception("Failed to restore target location");
+                    else
+                        TargetLocation = new Waypoint(loc, Vector3D.Zero, "Target");
                     ChosenApproach = ini.Get("Runtime", "ChosenApproach").ToString("");
                     ApproachIndex = ini.Get("Runtime", "ApproachIndex").ToInt32(-1);
                     TargetEntityID = ini.Get("Runtime", "TargetEntityID").ToInt64(0);
@@ -382,6 +416,7 @@ namespace IngameScript
             ini.Set("General", "AbortDistance", AbortDistance);
             ini.Set("General", "ScanningDistance", ScanningDistance);
             ini.Set("General", "MaxSpeed", MaxSpeed);
+            ini.Set("General", "ActionTimeout", ActionTimeout);
             ini.Set("General", "TransmitTag", TransmitTag);
             ini.Set("General", "Dock", DockLocation.ToString());
             ini.Set("General", "DockApproach", DockApproachVector.ToString());
@@ -437,11 +472,11 @@ namespace IngameScript
             Message($"Target: {TargetLocation.ToString()}");
             if (ApproachIndex < 0)
             {
-                var minkv = Approaches.MinBy((kv) => (float)(TargetLocation - kv.Value[0]).Length());
+                var minkv = Approaches.MinBy((kv) => (float)(TargetLocation.CurrentPosition - kv.Value[0]).Length());
                 ChosenApproach = minkv.Key;
                 ApproachIndex = minkv.Value.Count - 1;
             }
-            if ((Approaches[ChosenApproach][0] - TargetLocation).Length() > AbortDistance)
+            if ((Approaches[ChosenApproach][0] - TargetLocation.CurrentPosition).Length() > AbortDistance)
             {
                 Message("Target location is too far from the dock!");
                 yield return "";
@@ -459,8 +494,8 @@ namespace IngameScript
                 {
                     yield return null;
                 }
-                if (Camera != null)
-                    Camera.EnableRaycast = true;
+                foreach (var cam in Cameras)
+                    cam.EnableRaycast = true;
                 yield return "LeaveDock";
             }
         }
@@ -477,6 +512,7 @@ namespace IngameScript
                 gyro.Enabled = true;
             Connector.Disconnect();
             Connector.Enabled = false;
+            Antenna.Enabled = true;
         }
 
         IEnumerable<string> LeaveDock()
@@ -505,9 +541,9 @@ namespace IngameScript
         IEnumerable<string> ReachTargetArea()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
-            Waypoint wp = new Waypoint(TargetLocation, Vector3D.Zero, "Target");
+            Waypoint wp = new Waypoint(TargetLocation.CurrentPosition, TargetLocation.Velocity, TargetLocation.Name);
             wp.TargetDistance = ScanningDistance;
-            if ((TargetLocation - Pilot.Controller.GetPosition()).LengthSquared() < (wp.TargetDistance * wp.TargetDistance))
+            if ((TargetLocation.CurrentPosition - Pilot.Controller.GetPosition()).LengthSquared() < (wp.TargetDistance * wp.TargetDistance))
                 yield return "FindTarget";
             Message("Proceeding to target area.");
 
@@ -522,25 +558,26 @@ namespace IngameScript
             {
                 if (HasToAbort())
                     yield return "ReturnHome";
-                else if (Camera != null)
+                else
                 {
                     Vector3D scanvector =
-                        Camera.GetPosition() +
-                        Camera.WorldMatrix.Up * 1.5 * Me.CubeGrid.WorldVolume.Radius * Math.Sin(rotangle) +
-                        Camera.WorldMatrix.Left * 1.5 * Me.CubeGrid.WorldVolume.Radius * Math.Cos(rotangle) +
-                        Camera.WorldMatrix.Forward * scandistance;
-                    if (Camera.CanScan(scanvector))
-                    {
-                        rotangle += 0.8;
-                        if (rotangle > 2 * Math.PI)
-                            rotangle -= 2 * Math.PI;
-                        obstacle = Camera.Raycast(scanvector);
-                        if (!obstacle.IsEmpty() && (!TargetSelector(obstacle) || (obstacle.HitPosition.Value - TargetLocation).LengthSquared() > ScanningDistance*ScanningDistance))
+                        Clamp.GetPosition() +
+                        Clamp.WorldMatrix.Forward * 1.5 * Me.CubeGrid.WorldVolume.Radius * Math.Sin(rotangle) +
+                        Clamp.WorldMatrix.Left * 1.5 * Me.CubeGrid.WorldVolume.Radius * Math.Cos(rotangle) +
+                        Clamp.WorldMatrix.Down * scandistance;
+                    foreach (var cam in Cameras)
+                        if (cam.CanScan(scanvector))
                         {
-                            Message($"Obstacle detected, aborting. {obstacle.Name} @ {obstacle.Position}");
-                            yield return "FullStop";
+                            rotangle += 0.8;
+                            if (rotangle > 2 * Math.PI)
+                                rotangle -= 2 * Math.PI;
+                            obstacle = cam.Raycast(scanvector);
+                            if (!obstacle.IsEmpty() && (!TargetSelector(obstacle) || (obstacle.HitPosition.Value - TargetLocation.CurrentPosition).LengthSquared() > ScanningDistance * ScanningDistance))
+                            {
+                                Message($"Obstacle detected, aborting. {obstacle.Name} @ {obstacle.Position}");
+                                yield return "FullStop";
+                            }
                         }
-                    }
                 }
                 yield return null;
             }
@@ -613,20 +650,21 @@ namespace IngameScript
                 Message($"Failed to detect target with ID={TargetEntityID}");
                 yield return "ReturnHome";
             }
-
+            Timeout = ActionTimeout;
             Message("Capturing target...");
             Pilot.Tasks.Clear();
             var goal = new Waypoint(entity);
             Vector3D approach = entity.Position - Clamp.GetPosition();
             var strategy = new DockingStrategy(goal, Clamp, approach);
-            strategy.ReferenceForward = Base6Directions.Direction.Down;
-            strategy.ReferenceUp = Base6Directions.Direction.Forward;
+            strategy.AutoLockDistance = 2 * entity.BoundingBox.HalfExtents.Max();
             Pilot.Tasks.Add(strategy);
             while (!Pilot.Update(Runtime.TimeSinceLastRun.TotalSeconds))
             {
+                if (ActionTimeout > 0)
+                    Timeout -= Runtime.TimeSinceLastRun.TotalSeconds;
                 if (!goal.UpdateEntity(Sensors))
                 {
-                    Message($"Aborting: target left sensor range.");
+                    Message("Aborting: target left sensor range.");
                     yield return "ReturnHome";
                 }
                 else if (HasToAbort())
@@ -800,17 +838,21 @@ namespace IngameScript
             Message("Returning to base via route " + ChosenApproach);
             while (ApproachIndex < Approaches[ChosenApproach].Count)
             {
+                Timeout = ActionTimeout;
                 var strategy = new AimedFlightStrategy(Approaches[ChosenApproach][ApproachIndex], Pilot.Controller);
                 strategy.PositionEpsilon = 1.0;
                 Pilot.Tasks.Add(strategy);
                 while (!Pilot.Update(Runtime.TimeSinceLastRun.TotalSeconds))
                 {
-                    if (TooFar())
+                    if (ActionTimeout > 0)
+                        Timeout -= Runtime.TimeSinceLastRun.TotalSeconds;
+                    if (TooFar() || (Timeout <= 0 && ActionTimeout > 0))
                         Clamp.Unlock();
                     yield return null;
                 }
                 ApproachIndex++;
             }
+            Timeout = ActionTimeout;
             ChosenApproach = "";
             ApproachIndex = -1;
             yield return "Dock";
@@ -818,8 +860,6 @@ namespace IngameScript
 
         IEnumerable<string> Dock()
         {
-            if (Camera != null)
-                Camera.EnableRaycast = false;
             Connector.Enabled = true;
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             Message("Docking.");
@@ -836,12 +876,19 @@ namespace IngameScript
                     thruster.Enabled = false;
                 foreach (IMyGyro gyro in Gyros)
                     gyro.Enabled = false;
+                Antenna.Enabled = !DisableAntenna;
             }
             yield return "";
         }
 
         bool HasToAbort()
         {
+            if (Timeout <= 0 && ActionTimeout > 0)
+            {
+                Message("Aborting: operation timeout.");
+                Timeout = ActionTimeout;
+                return true;
+            }
             if (!Clamp.IsFunctional)
             {
                 Message("Aborting: clamp malfunction.");

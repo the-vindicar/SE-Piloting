@@ -29,6 +29,12 @@ namespace IngameScript
             /// </summary>
             public double VelocityUsage = 0.9;
             /// <summary>
+            /// How close (in meters) we should be to the target to engage autolock.
+            /// Non-positive values disable this behaviour.
+            /// If docking block does not support autolock, it's ignored.
+            /// </summary>
+            public double AutoLockDistance = 0.0;
+            /// <summary>
             /// Vector pointing directly away from the dock, world-space. 
             /// If non-zero, ship will orient itself to face opposite of this vector, and will approach the dock riding on it.
             /// If zero, ship will fly directly towards the dock, which may result in crooked or failed docking.
@@ -214,10 +220,10 @@ namespace IngameScript
                     linearV = direction * acceptable_velocity + Goal.Velocity;
                     angularV = Vector3D.Zero;
                 }
-                return TryLockIn() || (target_distance < PositionEpsilon);
+                return TryLockIn(distance) || (target_distance < PositionEpsilon);
             }
 
-            public Func<bool> TryLockIn { get; private set; }
+            public Func<double, bool> TryLockIn { get; private set; }
             public Action Unlock { get; private set; }
 
             void UnlockConnector()
@@ -251,7 +257,7 @@ namespace IngameScript
                     clamp.Base.Detach();
             }
 
-            bool TryLockInConnector()
+            bool TryLockInConnector(double distance)
             {
                 IMyShipConnector clamp = Reference as IMyShipConnector;
                 clamp.Enabled = true;
@@ -264,23 +270,25 @@ namespace IngameScript
                     return false;
             }
 
-            bool TryLockInLGear()
+            bool TryLockInLGear(double distance)
             {
                 IMyLandingGear clamp = Reference as IMyLandingGear;
                 clamp.Enabled = true;
+                if (AutoLockDistance > 0)
+                    clamp.AutoLock = distance < AutoLockDistance;
                 if (clamp.LockMode == LandingGearMode.ReadyToLock)
                     clamp.Lock();
                 return clamp.LockMode == LandingGearMode.Locked;
             }
 
-            bool TryLockInMerge()
+            bool TryLockInMerge(double distance)
             {
                 IMyShipMergeBlock clamp = Reference as IMyShipMergeBlock;
                 clamp.Enabled = true;
                 return clamp.IsConnected;
             }
 
-            bool TryLockInStator()
+            bool TryLockInStator(double distance)
             {
                 IMyMotorStator clamp = Reference as IMyMotorStator;
                 clamp.Enabled = true;
@@ -289,7 +297,7 @@ namespace IngameScript
                 return clamp.IsAttached;
             }
 
-            bool TryLockInRotor()
+            bool TryLockInRotor(double distance)
             {
                 IMyMotorRotor clamp = Reference as IMyMotorRotor;
                 return clamp.IsAttached;

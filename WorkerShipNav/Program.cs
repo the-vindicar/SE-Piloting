@@ -21,7 +21,9 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
+        IMyTextSurface LogScreen;
         MyCommandLine Cmd = new MyCommandLine();
+        MyIni SavedState = new MyIni();
         StringBuilder ShipInfo = new StringBuilder();
         StringBuilder StorageInfo = new StringBuilder();
         MyDetectedEntityInfo ScanResult = new MyDetectedEntityInfo();
@@ -40,6 +42,11 @@ namespace IngameScript
 
         public Program()
         {
+            LogScreen = Me.GetSurface(0);
+            if (LogScreen != null)
+                LogScreen.ContentType = ContentType.TEXT_AND_IMAGE;
+            SavedState.TryParse(Storage);
+
             Pilot = new AutoPilot(GridTerminalSystem, Me);
             GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(null, (b) => 
             {
@@ -90,9 +97,10 @@ namespace IngameScript
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
         }
 
-        public void Log(string msg)
+        public void Save()
         {
-            Echo(msg);
+            SavedState.Clear();
+            Storage = SavedState.ToString();
         }
 
         public void Main(string argument, UpdateType updateSource)
@@ -136,6 +144,7 @@ namespace IngameScript
             else
             {
                 var task = new DockingStrategy(dock, Connector, approach, orientation);
+                task.PositionEpsilon = 0.25;
                 Pilot.Tasks.Add(task);
             }
         }
@@ -179,7 +188,7 @@ namespace IngameScript
                 return false;
             }
             Base6Directions.Direction dir = info.Orientation.GetClosestDirection(camera.GetPosition() - info.HitPosition.Value);
-            approach = info.Orientation.GetDirectionVector(dir);
+            approach = -info.Orientation.GetDirectionVector(dir);
             position = info.HitPosition.Value;
             Base6Directions.Direction odir = info.Orientation.GetClosestDirection(Connector.WorldMatrix.Up);
             orientation = info.Orientation.GetDirectionVector(odir);
@@ -192,13 +201,13 @@ namespace IngameScript
             if (!ScanResult.IsEmpty())
             {
                 ScanInfo.Append(ScanResult.Name);
-                ScanInfo.Append('\n');
+                ScanInfo.Append(": ");
                 ScanInfo.Append(ScanResult.Type.ToString());
                 ScanInfo.Append('\n');
                 ScanInfo.Append(ScanResult.Relationship.ToString());
                 ScanInfo.Append('\n');
-                ScanInfo.Append($"Size: {ScanResult.BoundingBox.Size.Max():F0}m\n");
-                ScanInfo.Append($"Speed: {ScanResult.Velocity.Length():F0}m/s\n");
+                ScanInfo.Append($"Distance: {(ScanResult.Position - Cockpit.GetPosition()).Length()}m\n");
+                ScanInfo.Append($"Speed: {ScanResult.Velocity.Length():F1}m/s\n");
                 ScanInfo.Append($"GPS:{ScanResult.Name}:{ScanResult.Position.X:F1}:{ScanResult.Position.Y:F1}:{ScanResult.Position.Z:F1}:\n");
             }
             Right.WriteText(ScanInfo);
@@ -253,5 +262,34 @@ namespace IngameScript
             }
             Middle.WriteText(StorageInfo, false);
         }
+
+        public static void RemoveLinesBefore(StringBuilder sb, int linecount)
+        {
+            int idx;
+            int counter = linecount;
+            for (idx = sb.Length - 1; idx >= 0; idx--)
+            {
+                if (sb[idx] == '\n')
+                    counter--;
+                if (counter == 0) break;
+            }
+            if (idx >= 0)
+                sb.Remove(0, idx + 2);
+        }
+
+        StringBuilder LogSB = new StringBuilder();
+        public void Log(string msg)
+        {
+            Echo(msg);
+            if (LogScreen != null)
+            {
+                LogScreen.ReadText(LogSB, false);
+                RemoveLinesBefore(LogSB, 20);
+                LogScreen.WriteText(LogSB, false);
+                LogSB.Clear();
+            }
+        }
+
+
     }
 }

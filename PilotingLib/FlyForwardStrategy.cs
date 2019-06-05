@@ -124,35 +124,9 @@ namespace IngameScript
                 scan_dist = Math.Max(scan_dist, 100);
 
                 if (ScanForObstacles(owner, scan_dist))
-                {   //obstacle detected - slow down if necessary
-                    //owner.Log?.Invoke($"HIT: {Obstacle.HitPosition.Value.X:F1}:{Obstacle.HitPosition.Value.Y:F1}:{Obstacle.HitPosition.Value.Z:F1}");
-                    Vector3D traectory = Obstacle.HitPosition.Value - refpoint;
-                    double distance = traectory.Normalize() - speed*owner.elapsedTime;
-                    if (distance < 0)
-                    {
-                        distance *= -1;
-                        traectory *= -1;
-                    }
-                    //owner.Log?.Invoke($"Distance: {distance:F1}");
-                    if (Math.Abs(distance) < PositionEpsilon)
-                    {
-                        linearV = -TargetVector * obstacle_speed;
-                        CurrentState = State.Destination;
-                        return true;
-                    }
-                    else
-                    {
-                        double braking_time = Math.Sqrt(2 * distance / decel);
-                        //owner.Log?.Invoke($"ETS: {braking_time:F1}");
-                        double acceptable_speed = Math.Min(VelocityUsage * decel * braking_time, MaxLinearSpeed);
-                        //owner.Log?.Invoke($"Max speed: {acceptable_speed:F1}");
-                        //extra slowdown when close to the target
-                        acceptable_speed = Math.Min(acceptable_speed, distance);
-                        //moving relative to the target
-                        linearV = traectory * (acceptable_speed - obstacle_speed);
-                        return false;
-                    }
-
+                {   //obstacle detected - we are done
+                    linearV = Vector3D.Zero;
+                    return true;
                 }
                 else
                 {   //no obstacles detected - fly at top speed

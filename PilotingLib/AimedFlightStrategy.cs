@@ -54,7 +54,7 @@ namespace IngameScript
                 if (Goal == null) return false;
                 bool distanceok = false;
                 bool orientationok = false;
-                IMyTerminalBlock reference = Reference ?? owner.Controller;
+                IMyCubeBlock reference = Reference ?? owner.Controller;
                 MatrixD wm = reference.WorldMatrix;
                 Goal.UpdateTime(owner.elapsedTime);
                 Vector3D direction = Goal.CurrentPosition - wm.Translation;
