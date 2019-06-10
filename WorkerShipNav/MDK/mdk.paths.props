@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <MDKVersion>1.2.14</MDKVersion>
+    <MDKVersion>1.2.17</MDKVersion>
     <MDKGameBinPath>d:\games\steam\SteamApps\common\SpaceEngineers\Bin64</MDKGameBinPath>
-    <MDKInstallPath>c:\users\vindicar\appdata\local\microsoft\visualstudio\15.0_02480733\extensions\nqne4rca.5hz</MDKInstallPath>
+    <MDKInstallPath>c:\users\vindicar\appdata\local\microsoft\visualstudio\15.0_02480733\extensions\bz1nt04j.mfl</MDKInstallPath>
     <MDKOutputPath>C:\Users\Vindicar\AppData\Roaming\SpaceEngineers\IngameScripts\local</MDKOutputPath>
   </PropertyGroup>
   <ItemGroup>

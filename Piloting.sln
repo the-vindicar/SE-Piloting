@@ -3,19 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.168
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "PilotingLib", "PilotingLib\PilotingLib.shproj", "{A4C34238-B560-4EB3-ADEF-016FEFF61FCF}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SalvageDrone", "SalvageDrone\SalvageDrone.csproj", "{1B38B6FC-8793-4B7B-A8E6-CC362E49DA8A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DroneControlPanel", "DroneControlPanel\DroneControlPanel.csproj", "{602EE81F-2DBA-4030-B2AC-7C673EF91B41}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerShipNav", "WorkerShipNav\WorkerShipNav.csproj", "{AB8EDD28-BD1B-46E8-9896-A1E3762D7FD8}"
 EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "PilotingLib", "PilotingLib\PilotingLib.shproj", "{A4C34238-B560-4EB3-ADEF-016FEFF61FCF}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		PilotingLib\PilotingLib.projitems*{1b38b6fc-8793-4b7b-a8e6-cc362e49da8a}*SharedItemsImports = 4
 		PilotingLib\PilotingLib.projitems*{a4c34238-b560-4eb3-adef-016feff61fcf}*SharedItemsImports = 13
-		PilotingLib\PilotingLib.projitems*{ab8edd28-bd1b-46e8-9896-a1e3762d7fd8}*SharedItemsImports = 4
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
